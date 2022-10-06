@@ -276,8 +276,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--type_criterion",
         type=str,
-        default="weighted_sum_abs_reference_s",
-        help='specify the experiment type among ["weighted_sum_abs_reference_s", "entropy"]',
+        default="divergence_criterion",
+        help='specify the experiment type among ["divergence_criterion", "entropy"]',
     )
 
     parser.add_argument(

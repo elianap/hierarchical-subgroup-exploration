@@ -64,7 +64,7 @@ class Splitting_node:
             ) * self.split_node_1.criterion_value + (
                 self.split_node_2.node_size / self.size_splitting_node
             ) * self.split_node_2.criterion_value
-        elif self.type_criterion == "weighted_sum_abs_reference_s":
+        elif self.type_criterion == "divergence_criterion":
             self.split_criterion = (
                 self.split_node_1.node_size / self.size_splitting_node
             ) * self.split_node_1.criterion_value + (
@@ -209,7 +209,7 @@ class Splitting_node:
                 return True, gain
             else:
                 return False, gain
-        elif self.type_criterion == "weighted_sum_abs_reference_s":
+        elif self.type_criterion == "divergence_criterion":
 
             gain = self.support * self.split_criterion
             if gain > minimal_gain:
@@ -400,7 +400,7 @@ def compute_criterion(
     ]:
         criterion_value = abs(divergence)
 
-    elif type_criterion == "weighted_sum_abs_reference_s":
+    elif type_criterion == "divergence_criterion":
         # criterion_value = abs(p - f_over_parent_node)
         criterion_value = abs(p - f_over_parent_node)
 

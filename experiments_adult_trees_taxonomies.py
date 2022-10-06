@@ -11,7 +11,7 @@ pd.set_option("display.max_colwidth", None)
 def run_adult_experiments_trees_taxonomies(
     name_output_dir="output",
     type_experiments=["one_at_time", "all_attributes"],
-    type_criterion="weighted_sum_abs_reference_s",
+    type_criterion="divergence_criterion",
     min_support_tree=0.1,
     min_sup_divergences=[0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.15, 0.2],
     metrics=["d_outcome"],
@@ -291,8 +291,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--type_criterion",
         type=str,
-        default="weighted_sum_abs_reference_s",
-        help='specify the experiment type among ["weighted_sum_abs_reference_s", "entropy"]',
+        default="divergence_criterion",
+        help='specify the experiment type among ["divergence_criterion", "entropy"]',
     )
 
     parser.add_argument(

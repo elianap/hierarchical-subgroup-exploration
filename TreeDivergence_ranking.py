@@ -3,7 +3,7 @@ import operator
 
 OUTCOME = "outcome"
 CLASSIFICATION = "classification"
-DIVERGENCE_CRITERION = "weighted_sum_abs_reference_s"
+DIVERGENCE_CRITERION = "divergence_criterion"
 
 PRINT_VERBOSE = False
 
@@ -308,7 +308,7 @@ class TreeDivergence_ranking:
         node_divergence,
         verbose=False,
         node_criterion=None,
-        type_criterion="weighted_sum_abs_reference_s",
+        type_criterion="divergence_criterion",
         gain=False,
         parent_split_criterion_value=None,
         minimal_gain=None,
