@@ -22,8 +22,8 @@ def printable(
         df_print[t_v] = df_print[t_v].round(1)
     df_print = df_print.round(r2)
     df_print.rename(columns={"support": "sup"}, inplace=True)
-    df_print.columns = df_print.columns.str.replace("d_*", f"{div_name}_")
-    df_print.columns = df_print.columns.str.replace("t_value", "t")
+    df_print.columns = df_print.columns.str.replace("d_*", f"{div_name}_", regex=True)
+    df_print.columns = df_print.columns.str.replace("t_value", "t", regex=True)
     for c in cols:
         df_print[c] = df_print[c].apply(lambda x: sortItemset(x, abbreviations))
 
