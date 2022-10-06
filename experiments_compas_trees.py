@@ -130,7 +130,6 @@ def run_compas_experiments_trees(
             time_results[type_gen][min_sup_divergence] = (
                 time.time() - start_time_divergence
             )
-            from utils_experiments_runs import get_df_stats
 
             from divexplorer_generalized.FP_Divergence import FP_Divergence
             fp_i = FP_Divergence(FP_fm, metric)

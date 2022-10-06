@@ -135,7 +135,6 @@ def run_adult_experiments_trees_taxonomies(
             )
             if verbose:
                 print(f"({round( time.time() - start_time_divergence,2)})", end = " ")
-            from utils_experiments_runs import get_df_stats
 
             from divexplorer_generalized.FP_Divergence import FP_Divergence
             fp_i = FP_Divergence(FP_fm, metric)
