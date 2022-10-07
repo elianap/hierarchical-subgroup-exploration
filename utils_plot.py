@@ -121,7 +121,7 @@ def plotDicts(
         plt.rcParams["axes.prop_cycle"] = cycler.cycler("color", color)
 
     if limit is not None:
-        plt.ylim(top=limit)
+        plt.ylim(top=limit[1], bottom=limit[0])
     if tickF:
         xt = list(info_dict.keys())
         plt.xticks([xt[i] for i in range(0, len(xt)) if i == 0 or xt[i] * 100 % 5 == 0])
