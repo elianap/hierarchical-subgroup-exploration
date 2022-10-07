@@ -209,7 +209,9 @@ class TreeDivergence_ranking:
             ]
         if self.target_classification:
             data = (
-                instanceConfusionMatrix(data, class_map, class_name=class_name, pred_name=pred_name)
+                instanceConfusionMatrix(
+                    data, class_map, class_name=class_name, pred_name=pred_name
+                )
                 .drop(columns=self.target_columns)
                 .copy()
             )
@@ -521,10 +523,7 @@ class TreeDivergence_ranking:
                             "attr": attr_name,
                             "vals": (val, val2),
                             "rel": ("=", rel2),
-                            "indexes": [
-                                id_eq,
-                                id_diff,
-                            ],
+                            "indexes": [id_eq, id_diff,],
                             "criterion": split_node.split_criterion,
                             "divergence": [
                                 split_node.split_node_1.divergence,
@@ -800,9 +799,7 @@ class TreeDivergence_ranking:
         self.discrete_attr = []
         self.continuous_attr = []
         for attr in data[attributes]:
-            if (data.dtypes[attr] == np.object) and (
-                len(data[attr].unique()) <= n_discr
-            ):
+            if (data.dtypes[attr] == object) and (len(data[attr].unique()) <= n_discr):
                 self.discrete_attr.append(attr)
             else:
                 self.continuous_attr.append(attr)
@@ -1332,10 +1329,7 @@ class TreeDivergence_ranking:
         return generalization_dict, discretizations, keep_info_parent_nodes
 
     def visualizeTreeDiGraph(
-        self,
-        abbreviations={},
-        rels={">=": "≥", "<=": "≤"},
-        all_info=True,
+        self, abbreviations={}, rels={">=": "≥", "<=": "≤"}, all_info=True,
     ):
 
         from utils_print_tree import getTreeDiGraph

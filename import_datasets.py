@@ -460,7 +460,7 @@ def KBinsDiscretizer_continuos(
         return edges
 
     attributes = dt.columns if attributes is None else attributes
-    continuous_attributes = [a for a in attributes if dt.dtypes[a] != np.object]
+    continuous_attributes = [a for a in attributes if dt.dtypes[a] != object]
     X_discretize = dt[attributes].copy()
     for col in continuous_attributes:
         if len(dt[col].value_counts()) > 10:
@@ -559,7 +559,7 @@ def discretized_KBinsDiscretizer_continuos(
         attribute_edges = {}
 
     attributes = dt.columns if attributes is None else attributes
-    continuous_attributes = [a for a in attributes if dt.dtypes[a] != np.object]
+    continuous_attributes = [a for a in attributes if dt.dtypes[a] != object]
     X_discretize = dt[attributes].copy()
     for col in continuous_attributes:
         if len(dt[col].value_counts()) > 10:
@@ -650,7 +650,7 @@ def train_predict(
 
         encoders = {}
         for column in attributes:
-            if dfI.dtypes[column] == np.object:
+            if dfI.dtypes[column] == object:
                 le = LabelEncoder()
                 X[column] = le.fit_transform(dfI[column])
                 encoders[column] = le

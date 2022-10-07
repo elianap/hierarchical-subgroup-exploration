@@ -410,7 +410,7 @@ def import_process_german(inputDir=DATASET_DIR):
 
 def KBinsDiscretizer_continuos(dt, attributes=None, bins=3):
     attributes = dt.columns if attributes is None else attributes
-    continuous_attributes = [a for a in attributes if dt.dtypes[a] != np.object]
+    continuous_attributes = [a for a in attributes if dt.dtypes[a] != object]
     X_discretize = dt[attributes].copy()
 
     for col in continuous_attributes:
@@ -488,7 +488,7 @@ def train_predict(
 
         encoders = {}
         for column in attributes:
-            if dfI.dtypes[column] == np.object:
+            if dfI.dtypes[column] == object:
                 le = LabelEncoder()
                 X[column] = le.fit_transform(dfI[column])
                 encoders[column] = le

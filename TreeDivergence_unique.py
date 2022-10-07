@@ -803,7 +803,7 @@ class TreeDivergence_unique:
         self.discrete_attr = []
         self.continuous_attr = []
         for attr in data[attributes]:
-            if (data.dtypes[attr] == np.object) and (
+            if (data.dtypes[attr] == object) and (
                 len(data[attr].unique()) <= n_discr
             ):
                 self.discrete_attr.append(attr)
