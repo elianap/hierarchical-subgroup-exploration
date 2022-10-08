@@ -42,8 +42,8 @@ def plotDicts(
     sizeFig=(4, 3),
     labelSize=10,
     markersize=4,
-    outside=False,
     linewidth=1.5,
+    outside=False,
     titleLegend="",
     tickF=False,
     yscale="linear",
@@ -54,6 +54,7 @@ def plotDicts(
     xscale="linear",
     linestyle="-",
     borderpad=0.25,
+    kformat=None,
 ):
     import matplotlib.pyplot as plt
     import numpy as np
@@ -61,6 +62,17 @@ def plotDicts(
     # plt.rcParams["figure.figsize"], plt.rcParams["figure.dpi"] = sizeFig, 100
 
     fig, ax = plt.subplots(figsize=sizeFig, dpi=100)
+
+    if kformat:
+        from matplotlib.ticker import FuncFormatter
+
+        def kilos(x, pos):
+            "The two args are the value and tick position"
+            return f"{(x * 1e-3):.0f}k"
+
+        formatter = FuncFormatter(kilos)
+
+        ax.yaxis.set_major_formatter(formatter)
 
     m_i = 0
 
@@ -87,9 +99,6 @@ def plotDicts(
         linestyle = {k: "-" for k in keys}
 
     for e, (label_name, info_dict) in enumerate(info_dicts.items()):
-        # label_name = (
-        #     label if label != "artificial_10" else "artificial"
-        # )  # For clarity reasons
         if marker:
             ax.plot(
                 list(info_dict.keys()),
@@ -122,19 +131,25 @@ def plotDicts(
 
     if limit is not None:
         plt.ylim(top=limit[1], bottom=limit[0])
-    if tickF:
-        xt = list(info_dict.keys())
-        plt.xticks([xt[i] for i in range(0, len(xt)) if i == 0 or xt[i] * 100 % 5 == 0])
 
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
+    if not kformat and tickF:
+        print("bbb")
+        xt = list(info_dict.keys())
+        plt.xticks(
+            [xt[i] for i in range(0, len(xt)) if i == 0 or xt[i] * 100 % 5 == 0],
+            fontsize=labelSize,
+        )
+
+    plt.xlabel(xlabel, fontsize=labelSize)
+    plt.ylabel(ylabel, fontsize=labelSize)
+    plt.title(title, fontsize=labelSize)
 
     plt.xscale(xscale)
-    plt.yscale(yscale)
+    if not kformat:
+        plt.yscale(yscale)
     if outside:
         plt.legend(
-            prop={"size": labelSize},
+            prop={"size": legendSize},
             bbox_to_anchor=(1.04, 1),
             loc="upper left",
             title=titleLegend,
@@ -143,7 +158,7 @@ def plotDicts(
         )
     else:
         plt.legend(
-            prop={"size": labelSize},
+            prop={"size": legendSize},
             title=titleLegend,
             fontsize=legendSize,
             title_fontsize=legendSize,
