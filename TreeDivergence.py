@@ -163,7 +163,7 @@ class TreeDivergence:
         verbose=False,
         **kwargs,
     ):
-        
+
         from utils_metric_tree import instanceConfusionMatrix, getPerformanceMetric
 
         attributes = [a for a in list(data.columns) if a not in [class_name, pred_name]]
@@ -175,7 +175,9 @@ class TreeDivergence:
             ]
 
         data = (
-            instanceConfusionMatrix(data, class_map, class_name=class_name, pred_name=pred_name)
+            instanceConfusionMatrix(
+                data, class_map, class_name=class_name, pred_name=pred_name
+            )
             .drop(columns=[class_name, pred_name])
             .copy()
         )
@@ -664,15 +666,21 @@ class TreeDivergence:
     def printNode(self, node, indent="", round_v=5, show_condition=False):
         if show_condition:
             attr, rel, val = node.node_condition()
+
             print(
                 indent,
                 f"{attr}{rel}{val} s={node.support:.{round_v}f} --> {self.metric}={node.metric:.{round_v}f}",
             )
+            # print(indent, node.confusion_matrix)
+            # print(indent, "Measure node", node.measure_node)
+            # print(indent, "Criterion value", node.criterion_value)
+            # print(indent)
         else:
             print(
                 indent,
                 f"{node.attr}{node.rel}{node.val} s={node.support:.{round_v}f} --> {self.metric}={node.metric:.{round_v}f}",
             )
+
         if node.children:
             for child in node.children:
                 self.printNode(
@@ -729,13 +737,23 @@ class TreeDivergence:
         generalized_value="",
         parent_node_info={},
         indent="",
+        ver2=False,
     ):
 
         isRoot = True if node.attr == "root" else False
         current_node = f"{node.attr}{node.rel}{node.val}"
-        rels, new_itemset, rels_ret, vals_ret, value_short = self.summarizeInterval(
-            node, parent_node_info, isRoot
-        )
+        if ver2:
+            (
+                rels,
+                new_itemset,
+                rels_ret,
+                vals_ret,
+                value_short,
+            ) = self.summarizeInterval_v2(node, parent_node_info, isRoot)
+        else:
+            rels, new_itemset, rels_ret, vals_ret, value_short = self.summarizeInterval(
+                node, parent_node_info, isRoot
+            )
         if isRoot is False:
 
             node_info = {
@@ -773,12 +791,116 @@ class TreeDivergence:
         self.discrete_attr = []
         self.continuous_attr = []
         for attr in data[attributes]:
-            if (data.dtypes[attr] == object) and (
-                len(data[attr].unique()) <= n_discr
-            ):
+            if (data.dtypes[attr] == object) and (len(data[attr].unique()) <= n_discr):
                 self.discrete_attr.append(attr)
             else:
                 self.continuous_attr.append(attr)
+
+    def summarizeInterval_v2(self, node, parent_node_info, isRoot):
+        from copy import deepcopy
+
+        verbose = False
+        rels = deepcopy(parent_node_info)
+        new_itemset = []
+        rels_ret, vals_ret, value_short = {}, {}, {}
+
+        if isRoot:
+            return rels, new_itemset, rels_ret, vals_ret, value_short
+
+        if node.attr not in rels:
+            rels[node.attr] = []
+        # else:
+        #    toUpdate = True
+        node_attr = {"attr": node.attr, "rel": node.rel, "val": node.val}
+        rels[node.attr].append(node_attr)
+
+        for attr, list_discr in rels.items():
+            if attr not in rels_ret:
+                rels_ret[attr] = []
+                vals_ret[attr] = []
+                value_short[attr] = []
+            if verbose:
+                print(attr)
+            if len(list_discr) == 1:
+                new_itemset.append(
+                    f'{list_discr[0]["attr"]}{list_discr[0]["rel"]}{list_discr[0]["val"]}'
+                )
+                value_short[attr].append(
+                    f'{list_discr[0]["rel"]}{list_discr[0]["val"]}'
+                )
+                rels_ret[attr].append(list_discr[0]["rel"])
+                vals_ret[attr].append(list_discr[0]["val"])
+            else:
+                attr_rel = {}
+                eq_relations = [
+                    f'{h["attr"]}{h["rel"]}{h["val"]}'
+                    for h in list_discr
+                    if "=" == h["rel"]
+                ]
+                if eq_relations:
+                    new_itemset.append(eq_relations[0])
+                    value_short[attr].append(
+                        [f'{h["val"]}' for h in list_discr if "=" == h["rel"]][0]
+                    )
+                    # TODO check
+                    for h in list_discr:
+                        rels_ret[attr].append(h["rel"])
+                        vals_ret[attr].append(h["val"])
+                else:
+                    diff_relations = [
+                        f'{h["attr"]}{h["rel"]}{h["val"]}'
+                        for h in list_discr
+                        if "!=" == h["rel"]
+                    ]
+                    if len(diff_relations) == len(list_discr):
+                        new_itemset.extend(diff_relations)
+                        for h in list_discr:
+                            if "!=" == h["rel"]:
+                                rels_ret[attr].append(h["rel"])
+                                vals_ret[attr].append(h["val"])
+                                value_short[attr].append(f'{h["rel"]}{h["val"]}')
+                    else:
+                        for d in list_discr:
+                            if d["rel"] not in ["<=", ">", "="]:
+                                print(attr, d["rel"])
+                                raise ValueError("# TODO - only intervals")
+                            if d["rel"] not in attr_rel:
+                                attr_rel[d["rel"]] = []
+                            attr_rel[d["rel"]].append(d["val"])
+
+                        if "<=" in attr_rel:
+                            r1 = "<="
+                            attr_rel["<="] = min(attr_rel["<="])
+                        if ">" in attr_rel:
+                            r1 = ">"
+                            attr_rel[">"] = max(attr_rel[">"])
+
+                        if "<=" in attr_rel and ">" in attr_rel:
+                            # if attr_rel[">"] == attr_rel["<="]:
+                            # new_itemset.append(f'{attr}={attr_rel["<="]}')
+                            # rels_ret[attr].append("=")
+                            # vals_ret[attr].append(attr_rel[">"])
+                            # value_short[attr].append(f'{attr_rel[">"]}')
+                            # else:
+                            new_itemset.append(
+                                f'{attr}=[{attr_rel[">"]}-{attr_rel["<="]}]'
+                            )
+                            # f'{attr_rel[">"]}<={attr}<={attr_rel["<="]}'
+                            rels_ret[attr].append(">")
+                            vals_ret[attr].append(attr_rel[">"])
+                            rels_ret[attr].append("<=")
+                            vals_ret[attr].append(attr_rel["<="])
+                            value_short[attr].append(
+                                f'[{attr_rel[">"]}-{attr_rel["<="]}]'
+                            )
+
+                        else:
+                            new_itemset.append(f"{attr}{r1}{attr_rel[r1]}")
+                            rels_ret[attr].append(r1)
+                            vals_ret[attr].append(attr_rel[r1])
+                            value_short[attr].append(f"{r1}{attr_rel[r1]}")
+
+        return rels, new_itemset, rels_ret, vals_ret, value_short
 
     # TODO summarize REWRITE TODO TODO TODO
     # TODO: handle discrete attributes
@@ -899,16 +1021,26 @@ class TreeDivergence:
 
     # TODO
     def printNodeDFSummarized(
-        self, node, tree_df, parent_node=[], parent_node_info={}, indent=""
+        self, node, tree_df, parent_node=[], parent_node_info={}, indent="", ver2=False
     ):
 
         isRoot = True if node.attr == "root" else False
         current_node = f"{node.attr}{node.rel}{node.val}"
 
         # print(parent_node_info)
-        rels, new_itemset, rels_ret, vals_ret, value_short = self.summarizeInterval(
-            node, parent_node_info, isRoot
-        )
+
+        if ver2:
+            (
+                rels,
+                new_itemset,
+                rels_ret,
+                vals_ret,
+                value_short,
+            ) = self.summarizeInterval_v2(node, parent_node_info, isRoot)
+        else:
+            rels, new_itemset, rels_ret, vals_ret, value_short = self.summarizeInterval(
+                node, parent_node_info, isRoot
+            )
         node_info = {
             "itemset": frozenset(parent_node + [current_node])
             if isRoot is False
@@ -933,10 +1065,13 @@ class TreeDivergence:
                 )
 
     # TODO
-    def get_hierarchy_DF(self, tree=None, verbose_info=False):
+    def get_hierarchy_DF(self, tree=None, verbose_info=False, ver2=False):
         tree = tree if tree else self.tree
         tree_df = []
-        self.node_get_hierarchy_DF(tree, tree_df, parent_node_names=[])
+
+        # print("Version ", ver2)
+
+        self.node_get_hierarchy_DF(tree, tree_df, parent_node_names=[], ver2=ver2)
 
         if tree_df == []:
             return None
@@ -983,6 +1118,7 @@ class TreeDivergence:
         apply_generalization=False,
         generalization_dict=None,
         modality="consider_attribute_hierarchy",
+        ver2=False,
     ):
         def convert_to_interval(rel_vals, min_v, max_v):
             interval = [min_v, max_v]
@@ -1003,6 +1139,7 @@ class TreeDivergence:
             apply_generalization,
             generalization_dict,
             modality="consider_attribute_hierarchy",
+            ver2=False,
         ):
             if apply_generalization == True:
                 return True
@@ -1025,12 +1162,18 @@ class TreeDivergence:
         tree = tree if tree else self.tree
         tree_list = []
 
-        self.node_get_hierarchy_DF(self.tree, tree_list, parent_node_names=[])
+        self.node_get_hierarchy_DF(
+            self.tree, tree_list, parent_node_names=[], ver2=ver2
+        )
         # t.min_max_for_attribute
         discr_attribute = {}
         for discr_i in tree_list:
             add_interval = check_add_interval(
-                discr_i, apply_generalization, generalization_dict, modality=modality
+                discr_i,
+                apply_generalization,
+                generalization_dict,
+                modality=modality,
+                ver2=ver2,
             )
             if add_interval:
                 attribute = discr_i["attribute"]
@@ -1057,12 +1200,14 @@ class TreeDivergence:
         apply_generalization=False,
         generalization_dict=None,
         modality="consider_attribute_hierarchy",
+        ver2=False,
     ):
         discr_attribute_interval = self.get_discretization_relations(
             tree=tree,
             generalization_dict=generalization_dict,
             apply_generalization=apply_generalization,
             modality=modality,
+            ver2=ver2,
         )
         for attribute in discr_attribute_interval:
             discr_attribute_interval[attribute] = [
@@ -1080,17 +1225,27 @@ class TreeDivergence:
         parent_node_name=[],
         parent_node_names=[],
         indent="",
+        ver2=False,
     ):
         isRoot = True if node.attr == "root" else False
         current_node = f"{node.attr}{node.rel}{node.val}"
+        if ver2:
+            (
+                rels,
+                itemset_attribute_value_short,
+                rels_ret,
+                vals_ret,
+                itemset_value_name,
+            ) = self.summarizeInterval_v2(node, parent_node_info, isRoot)
 
-        (
-            rels,
-            itemset_attribute_value_short,
-            rels_ret,
-            vals_ret,
-            itemset_value_name,
-        ) = self.summarizeInterval(node, parent_node_info, isRoot)
+        else:
+            (
+                rels,
+                itemset_attribute_value_short,
+                rels_ret,
+                vals_ret,
+                itemset_value_name,
+            ) = self.summarizeInterval(node, parent_node_info, isRoot)
         parent_node_name_attribute = []
         index_i = -1
         if isRoot is False:
@@ -1170,11 +1325,14 @@ class TreeDivergence:
                     parent_node_info=rels,
                     parent_node_names=parent_node_names,
                     indent=indent + "        ",
+                    ver2=ver2,
                 )
 
-    def getHierarchyAndDiscretizationSplits(self, tree, verbose=False):
+    def getHierarchyAndDiscretizationSplits(self, tree, verbose=False, ver2=False):
         # TODO: manage empy tree
-        df_hierarchy = self.get_hierarchy_DF(tree)
+
+        # print("Version ", ver2)
+        df_hierarchy = self.get_hierarchy_DF(tree, ver2)
         if df_hierarchy is None:
             return None, None
         generalization_dict = {}
@@ -1501,12 +1659,13 @@ class TreeDivergence:
         rels={">=": "≥", "<=": "≤"},
         all_info=True,
         show_condition=False,
+        ver2=False,
     ):
 
         from utils_print_tree import getTreeDiGraph
 
         # TODO
-        self.get_hierarchy_DF()
+        self.get_hierarchy_DF(ver2=ver2)
 
         return getTreeDiGraph(
             self.tree,
