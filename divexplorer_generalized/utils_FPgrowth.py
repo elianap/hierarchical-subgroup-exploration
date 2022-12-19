@@ -508,9 +508,25 @@ def check_compatibility(iset, incompatible_items):
     if incompatible_items is not None and len(iset) > 1:
         # TODO: avoid generating unless terms
         for incompatible_term_i in incompatible_items:
+
+            cnt = 0
+            for i in iset:
+                if i in incompatible_term_i:
+                    cnt += 1
+                    if cnt > 1:
+                        compatible = False
+
+                        break
+
+            if compatible is False:
+                break
+
+            """
+            # print(iset)
             if len(set(iset).intersection(incompatible_term_i)) > 1:
                 compatible = False
                 break
+            """
 
     return compatible
 
