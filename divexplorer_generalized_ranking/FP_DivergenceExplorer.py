@@ -92,6 +92,81 @@ def define_target(true_class_name, predicted_class_name, target_name):
         # Remove, never raised if we check before the input
         raise ValueError("None specified")
 
+# REDUNDANT
+
+
+def _keep_only_admitted(X_oh, incompatible, keep_items):
+    """
+    Args
+        X_oh (pandas.DataFrame): dataframe in one hot encoding. Discretized items + generalized ones
+        incompatible (dict): {attribute: {frozenset of incompatible items}}
+        keep_items (dict): {attribute: [admitted items]}
+
+    Returs:
+        pandas.DataFrame: updated dataframe in one hot encoding with only the admitted items
+        dict: updated incompatible dictionary
+    """
+    # TODO remove deepcopy
+    from copy import deepcopy
+
+    X_pruned = deepcopy(X_oh)
+    incompatible_pruned = deepcopy(incompatible)
+
+    oh_cols = list(X_pruned.columns)
+
+    items_removed = 0
+    for e, col in enumerate(oh_cols):
+        s = col.split("=")
+        attr = s[0]
+        val = "=".join(s[1:])
+
+        if attr in keep_items:
+            if val not in keep_items[attr]:
+
+                id_item_to_remove = e - items_removed
+                items_removed += 1
+                X_pruned.drop(columns=[col], inplace=True)
+                for attribute in incompatible_pruned:
+                    vals = []
+                    for val in incompatible_pruned[attribute]:
+                        if val == id_item_to_remove:
+                            continue
+                        if val > id_item_to_remove:
+                            val -= 1
+                        vals.append(val)
+                    incompatible_pruned[attribute] = frozenset(vals)
+    return X_pruned, incompatible_pruned
+
+
+def _keep_only_admitted_single_discretization(X_oh, keep_items):
+    """
+    We directly drop the not admitted items
+    Args
+        X_oh (pandas.DataFrame): dataframe in one hot encoding. Discretized items + generalized ones
+
+        keep_items (dict): {attribute: [admitted items]}
+
+    Returs:
+        pandas.DataFrame: updated dataframe in one hot encoding with only the admitted items
+        dict: updated incompatible dictionary
+    """
+    # TODO remove deepcopy
+    from copy import deepcopy
+
+    X_pruned = deepcopy(X_oh)
+
+    oh_cols = list(X_pruned.columns)
+
+    items_removed = 0
+    for e, col in enumerate(oh_cols):
+        s = col.split("=")
+        attr = s[0]
+        val = "=".join(s[1:])
+
+        if attr in keep_items:
+            if val not in keep_items[attr]:
+                X_pruned.drop(columns=[col], inplace=True)
+    return X_pruned
 
 class FP_DivergenceExplorer_ranking:
     def __init__(
@@ -110,8 +185,15 @@ class FP_DivergenceExplorer_ranking:
         preserve_interval=None,
         sep="=",
         already_in_one_hot_encoding=False,
+        keep_only_positive_divergent_items=None,
     ):
         # TODO now function in import dataset
+
+        if keep_only_positive_divergent_items is not None:
+            if type(keep_only_positive_divergent_items) != dict:
+                raise ValueError(
+                    "The input should be a dictionary. Attribute: [admitted items]"
+                )
 
         check_target_inputs(true_class_name, predicted_class_name, target_name)
         self.target_type = define_target(
@@ -183,6 +265,20 @@ class FP_DivergenceExplorer_ranking:
                         ]
                     )
                     self.incompatible_items[attribute] = replaced_incompatible
+            
+            if keep_only_positive_divergent_items is not None:
+                self.X, self.incompatible_items = _keep_only_admitted(
+                    self.X, self.incompatible_items, keep_only_positive_divergent_items
+                )
+
+        else:
+
+            if keep_only_positive_divergent_items is not None:
+                # Keep only the admitted ones also in the case of single discretizatiion without generalization
+                self.X = _keep_only_admitted_single_discretization(
+                    self.X, keep_only_positive_divergent_items
+                )
+
 
         if self.target_type == CLASSIFICATION:
             self.y_predicted = (

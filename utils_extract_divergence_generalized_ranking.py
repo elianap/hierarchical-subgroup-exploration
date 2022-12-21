@@ -41,7 +41,11 @@ def extract_divergence_generalized(
     allow_overalp=False,
     type_experiment=None,
     verbose=False,
-):
+    keep_only_positive_divergent_items=None,
+    ):
+    """
+    keep_only_positive_divergent_items: if None, all are kept. Otherwise, keep only the one provided as input.
+    """
     from copy import deepcopy
 
 
@@ -137,7 +141,9 @@ def extract_divergence_generalized(
         class_map=class_map,
         generalizations_obj=generalizations_list,
         preserve_interval=preserve_interval,
-        already_in_one_hot_encoding=allow_overalp,
+        already_in_one_hot_encoding=allow_overalp,       
+        keep_only_positive_divergent_items=keep_only_positive_divergent_items,
+
     )
 
     FP_fm_input = fp_diver.getFrequentPatternDivergence(
