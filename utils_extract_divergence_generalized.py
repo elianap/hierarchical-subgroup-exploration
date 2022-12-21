@@ -1,7 +1,6 @@
 from divexplorer_generalized.utils_metrics_FPx import false_discovery_rate_df
 
 
-
 def extract_divergence_generalized(
     dfI,
     discretizations,
@@ -20,12 +19,15 @@ def extract_divergence_generalized(
     allow_overalp=False,
     type_experiment=None,
     verbose=False,
+    keep_only_positive_divergent_items=None,
 ):
-    
+    """
+    keep_only_positive_divergent_items: if None, all are kept. Otherwise, keep only the one provided as input.
+    """
     from copy import deepcopy
 
     generalization_dict_proc = deepcopy(generalization_dict)
-    
+
     if type_experiment is not None:
         if verbose:
             print("E", "allow_overalp", allow_overalp)
@@ -105,6 +107,7 @@ def extract_divergence_generalized(
             generalizations_list = get_generalization_hierarchy(
                 df_s_discretized[attributes_df], generalization_dict_proc
             )
+
     from divexplorer_generalized.FP_DivergenceExplorer import FP_DivergenceExplorer
 
     fp_diver = FP_DivergenceExplorer(
@@ -115,6 +118,7 @@ def extract_divergence_generalized(
         generalizations_obj=generalizations_list,
         preserve_interval=preserve_interval,
         already_in_one_hot_encoding=allow_overalp,
+        keep_only_positive_divergent_items=keep_only_positive_divergent_items,
     )
 
     FP_fm_input = fp_diver.getFrequentPatternDivergence(

@@ -339,9 +339,7 @@ class TreeDiscretization_ranking:
             n_leaf_nodes = self.trees.get_number_leaf_nodes()
         return n_internal_nodes, n_leaf_nodes
 
-    def get_new_attribute_discretization_generalization(
-        self, generalization_dict, discretizations, verbose=False
-    ):
+    def get_keep_items_associated_with_divergence(self):
 
         """
         Given the original generalization_dict and discretization_dict, it keeps only the items that are indeed associated with a divergent behavior.
@@ -356,16 +354,9 @@ class TreeDiscretization_ranking:
             dict : new generalization, with only positively divergent terms
             dict: new discretization, with only positively divergent terms
         """
-        new_generalization_dict = {}
-        new_discretizations = {}
-
+        items_keep = {}
         for attribute in self.trees:
-            (
-                new_generalization_dict[attribute],
-                new_discretizations[attribute],
-            ) = self.trees[attribute].get_new_attribute_discretization_generalization(
-                discretizations[attribute],
-                generalization_dict[attribute],
-                verbose=verbose,
-            )
-        return new_generalization_dict, new_discretizations
+            items_keep[attribute] = self.trees[
+                attribute
+            ].get_keep_items_for_attributes()
+        return items_keep
