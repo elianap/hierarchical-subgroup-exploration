@@ -1712,6 +1712,48 @@ class TreeDivergence:
             n_leaf.append(f"{node.attr}{node.rel}{node.val}")
 
 
+    def get_new_attribute_discretization_generalization(
+        self, attribute_discretization, attribute_generalization, verbose=True
+    ):
+        """
+        attribute_generalization not used, just to check
+        """
+        tree = self.tree
+        keep_items = {}
+        last_p = (None, None)
+        self._iterate_and_get_divergent_node_relevant(tree, keep_items, last_p)
+
+        keep_attribute_discretization = {
+            k: attribute_discretization[k]
+            for k in keep_items
+            if k in attribute_discretization
+        }
+
+        keep_attribute_generalization = {}
+        for k in keep_items:
+            if k in attribute_generalization:
+                if keep_items[k][0] != (attribute_generalization[k]):
+                    if verbose:
+                        print(k, keep_items[k], attribute_generalization[k])
+                keep_attribute_generalization[k] = keep_items[k][
+                    0
+                ]  # generalization_dict[attribute][k]
+
+        return keep_attribute_discretization, keep_attribute_generalization
+
+    def _iterate_and_get_divergent_node_relevant(self, node, keep_items, last_p):
+
+        has_children = True if node.children else False
+
+        if node.item_name == None or node.metric > 0:
+            keep_items[node.item_name] = last_p
+
+        if has_children:
+            last_p = (node.item_name if node.metric > 0 else last_p[0], node.item_name)
+            for child in node.children:
+                self._iterate_and_get_divergent_node_relevant(child, keep_items, last_p)
+
+
 """
     
     def selectBestSplit_ok(
