@@ -1024,3 +1024,53 @@ def two_plots_v2(
 
     plt.show()
     plt.close()
+
+
+
+
+
+
+
+
+
+
+######################
+
+
+
+def abbreviateValue(value, abbreviations={}):
+    for k, v in abbreviations.items():
+        if k in value:
+            
+            value = value.replace(k, v)
+    #TODO
+    if value[0:2] not in ["q_", "u_"]:
+        value = value.replace("_", " ")
+    return value
+    
+def abbreviate_dict_value(input_dict, abbreviations):
+    
+    conv ={}
+    for k1, dict_i in input_dict.items():
+        conv[k1] = { abbreviateValue(k, abbreviations): d for k, d in dict_i.items()}
+    return conv
+
+
+def get_predefined_color_labels(abbreviations = {}):
+    color_labels = {}
+        
+    color_labels[abbreviateValue(f'entropy_base', abbreviations)]="#7fcc7f"
+    color_labels[abbreviateValue(f'divergence_criterion_base', abbreviations)]="#009900"
+
+    color_labels[abbreviateValue(f'entropy_generalized', abbreviations)]="mediumblue"
+    color_labels[abbreviateValue(f'divergence_criterion_generalized', abbreviations)]="orangered"
+
+
+    color_labels[abbreviateValue(f'entropy_base_pruned', abbreviations)]="yellow"
+    color_labels[abbreviateValue(f'divergence_criterion_base_pruned', abbreviations)]="#C179EE"
+
+    color_labels[abbreviateValue(f'entropy_generalized_pruned', abbreviations)]="gray"
+    color_labels[abbreviateValue(f'divergence_criterion_generalized_pruned', abbreviations)]="#C01FB1"
+
+    return color_labels
+
