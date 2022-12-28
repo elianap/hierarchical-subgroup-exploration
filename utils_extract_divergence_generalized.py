@@ -20,6 +20,8 @@ def extract_divergence_generalized(
     type_experiment=None,
     verbose=False,
     keep_only_positive_divergent_items=None,
+    take_top_k = None,
+    metric_top_k = None
 ):
     """
     keep_only_positive_divergent_items: if None, all are kept. Otherwise, keep only the one provided as input.
@@ -126,5 +128,7 @@ def extract_divergence_generalized(
         metrics=metrics_divergence,
         FPM_type=FPM_type,
         save_in_progress=save_in_progress,
+        take_top_k = take_top_k,
+        metric_top_k = metric_top_k
     )
     return FP_fm_input
