@@ -86,6 +86,21 @@ def write_csv_in_chunck(df_chunck, filename, i):
         df_chunck.to_csv(f"{filename}", mode="a", header=False, index=False)
 
 
+def _get_df_top_k(res_df, take_top_k, metric_top_k,old_top_k = None, cols_orderTP=["tn", "fp", "fn", "tp"]):
+        from divexplorer_generalized_ranking.FP_DivergenceExplorer import FP_DivergenceExplorer
+        fp_tmp = FP_DivergenceExplorer()
+        res_df = fp_tmp.computeDivergenceItemsets(
+                    res_df, metrics=[metric_top_k], cols_orderTP=cols_orderTP
+                )
+        if df_top_k is None:
+            # First assignment
+            df_top_k = res_df
+        else:
+            df_top_k = pd.concat([df_top_k,res_df])
+        df_top_k = df_top_k.sort_values(metric_top_k, ascending=False).iloc[0:take_top_k]
+        return df_top_k
+
+
 def generate_itemsets(
     generator,
     num_itemsets,
@@ -93,6 +108,8 @@ def generate_itemsets(
     cols_orderTP=["tn", "fp", "fn", "tp"],
     incompatible_items=None,  ### Handling generalization/taxonomy
     save_in_progress=False,
+    take_top_k = None,
+    metric_top_k = None
 ):
     chunck_size = 10000
     itemsets = []
@@ -143,7 +160,7 @@ def generate_itemsets(
             if int(count / chunck_size) > p:
                 p = int(count / chunck_size)
                 print(p, count)
-                if save_in_progress:
+                if save_in_progress or take_top_k is not None:
                     # res_df = pd.DataFrame(
                     #     {
                     #         "support": supports,
@@ -163,17 +180,23 @@ def generate_itemsets(
                         res_df["itemsets"] = res_df["itemsets"].apply(
                             lambda x: [colname_map[i] for i in x]
                         )
+
                     supports.clear()
                     itemsets.clear()
-                    # c1.clear()
-                    # c2.clear()
-                    # c3.clear()
-                    # c4.clear()
                     for i_c_dict in range(0, len(cols_orderTP)):
                         c_dict[i_c_dict] = []
-                    write_csv_in_chunck(res_df, filename, p)
-                    res_df = res_df[0:0]
 
+                    if take_top_k is not None:
+                        #Update top k
+                        raise ValueError('take_top_k not implemented')
+                        df_top_k = _get_df_top_k(res_df, take_top_k,  metric_top_k, df_top_k, cols_orderTP=cols_orderTP)
+                        #raise ValueError('take_top_k not implemented')
+
+                    if save_in_progress:
+                        
+                    
+                        write_csv_in_chunck(res_df, filename, p)
+                        res_df = res_df[0:0]
     if save_in_progress:
 
         p = p + 1
@@ -240,9 +263,16 @@ def generate_itemsets(
             res_df["itemsets"] = res_df["itemsets"].apply(
                 lambda x: frozenset([colname_map[i] for i in x])
             )
+        if take_top_k is not None:
+            #Update top k
+            df_top_k = _get_df_top_k(res_df, take_top_k,  metric_top_k, df_top_k, cols_orderTP=cols_orderTP)
+
+    if take_top_k:
+        raise ValueError('todo')
+        ret_cols = list(df_top_k.columns)[0:-2]
+        return df_top_k[ret_cols]
 
     return res_df
-
 
 def valid_input_check(df):
 
@@ -449,6 +479,8 @@ def fpgrowth_cm(
     cols_orderTP=["tn", "fp", "fn", "tp"],
     incompatible_items=None,  ### Handling generalization/taxonomy
     save_in_progress=False,
+    take_top_k=None,
+    metric_top_k = None
 ):
     """Get frequent itemsets from a one-hot DataFrame
     Parameters
@@ -531,6 +563,8 @@ def fpgrowth_cm(
         cols_orderTP=cols_orderTP,
         incompatible_items=incompatible_items,  ### Handling generalization/taxonomy
         save_in_progress=save_in_progress,
+        take_top_k = take_top_k,
+        metric_top_k = metric_top_k
     )
 
 

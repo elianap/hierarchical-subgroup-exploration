@@ -712,6 +712,8 @@ class FP_DivergenceExplorer_ranking:
         sortedV="support",
         incompatible_items=None,  ### Handling generalization/taxonomy
         save_in_progress=False,
+        take_top_k = None,
+        metric_top_k=None
     ):
         from .utils_FPgrowth import fpgrowth_cm
 
@@ -731,6 +733,8 @@ class FP_DivergenceExplorer_ranking:
             cols_orderTP=cols_orderTP,
             incompatible_items=incompatible_items,
             save_in_progress=save_in_progress,
+            take_top_k = take_top_k,
+            metric_top_k = metric_top_k
         )
         # TODO For outcome purposes, we need to do the average
         row_root = dict(df_targets.sum())
@@ -752,7 +756,18 @@ class FP_DivergenceExplorer_ranking:
         FPM_type="fpgrowth",
         viz_col=False,
         save_in_progress=False,
+        take_top_k=None
     ):
+        
+        
+        if take_top_k is not None:
+            if metric_top_k is None:
+                metric_top_k = metrics[0]
+            if type(metric_top_k) != str:
+                raise ValueError(f'metric_top_k is the metric we optimize. {metric_top_k} was given')
+            if type(take_top_k)!=int:
+                raise ValueError(f'take_top_k defines the top k to consider in the extraction process. {take_top_k} was given.')
+  
 
         if (
             min_support in self.FP_metric_support
@@ -797,6 +812,8 @@ class FP_DivergenceExplorer_ranking:
                 incompatible_items=incompatible_items,
                 save_in_progress=save_in_progress,
                 cols_orderTP=cols_orderTP,
+                take_top_k=take_top_k,
+                metric_top_k = metric_top_k
             )
 
         else:
@@ -827,6 +844,8 @@ class FP_DivergenceExplorer_ranking:
                     # generalization=self.generalizations_obj,
                     incompatible_items=self.incompatible_items,
                     save_in_progress=save_in_progress,
+                    take_top_k=take_top_k,
+                    metric_top_k = metric_top_k
                 )
             else:
                 df_FP_metrics = self.apriori_divergence(
@@ -836,10 +855,12 @@ class FP_DivergenceExplorer_ranking:
                     use_colnames=True,
                     sortedV=sortedV,
                 )
-        df_FP_divergence = self.computeDivergenceItemsets(
-            df_FP_metrics, metrics=metrics
-        )
 
+        #TODO. In the case of take_top_k we are redoing it.. 
+        df_FP_divergence = self.computeDivergenceItemsets(
+                df_FP_metrics, metrics=metrics
+            )
+ 
         if min_support not in self.FP_metric_support:
             self.FP_metric_support[min_support] = {}
 
