@@ -184,11 +184,14 @@ def import_compas():
     return dfI, class_map, continuous_attributes
 
 
-def import_process_wine():
+def import_process_wine(input_dir = DATASET_DIR):
     df_all = []
 
     for d in ['winequality-white', 'winequality-white']:
-        df = pd.read_csv(f"https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/{d}.csv", sep=";")
+        if os.path.isfile(os.path.join(input_dir, f"{d}.csv")):
+                df = pd.read_csv(os.path.join(input_dir, f"{d}.csv"), sep=";")
+        else:
+                df = pd.read_csv(f"https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/{d}.csv", sep=";")
 
         df["quality"] = df["quality"].apply(lambda x: "good" if x>5 else "bad")
         class_map = {'P': 'good', 'N': 'bad'}
