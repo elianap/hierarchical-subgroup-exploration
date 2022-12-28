@@ -14,7 +14,7 @@ DATASET_DIRECTORY = os.path.join(os.path.curdir, "datasets")
 # # Import data
 from utils_plot import get_predefined_color_labels, abbreviateValue
 
-def run_pruning_experiemnt(dataset_name = 'wine', min_support_tree = 0.1,
+def run_pruning_experiment(dataset_name = 'wine', min_support_tree = 0.1,
     min_sup_divergences = [0.1, 0.15, 0.2],
     type_criterion="divergence_criterion",
     type_experiment = "one_at_time",
@@ -23,11 +23,23 @@ def run_pruning_experiemnt(dataset_name = 'wine', min_support_tree = 0.1,
     output_dir = 'output_results_2',
     saveFig = True,
     dataset_dir = DATASET_DIRECTORY,
-    min_instances = 50):
+    min_instances = 50,
+    no_all = True,
+    no_pruning = True):
+
+    """
+    Args
+    pruni
+    """
 
     print(dataset_name)
     print(min_sup_divergences)
-    print(output_dir)
+    print("Output:", output_dir)
+    print('Criterion:', type_criterion)
+
+    print('no_all', no_all, 'no_pruning', no_pruning)
+
+
 
     additional_taxonomy = None
  
@@ -44,11 +56,16 @@ def run_pruning_experiemnt(dataset_name = 'wine', min_support_tree = 0.1,
         df, class_map, continuous_attributes = import_compas()
 
     elif dataset_name== "adult":
-        from import_process_dataset import import_process_adult
+        from import_process_dataset import import_process_adult, train_classifier_kv
 
         df, class_map, continuous_attributes = import_process_adult()
 
         df = train_classifier_kv(df, encoding = True)
+
+    elif dataset_name == 'artificial_gaussian':
+        from import_process_dataset import generate_artificial_gaussian_error
+
+        df, class_map, continuous_attributes = generate_artificial_gaussian_error()
 
     elif dataset_name == 'german':
         from import_process_dataset import import_process_german, train_classifier_kv
@@ -140,21 +157,29 @@ def run_pruning_experiemnt(dataset_name = 'wine', min_support_tree = 0.1,
     out_fp = {}
 
 
+    keeps = []
 
+    # It is set as the opposite.. to do
     
+    if no_pruning:
+        keeps.append(True)
+        
+    if no_all:
+        keeps.append(False)
+
     import time
 
-    for apply_generalization in [False, True]:
-        type_gen = 'generalized' if apply_generalization else 'base'
-        print(type_gen)
-        for keep in [True, False]:
-            if keep:
-                keep_items = tree_discr.get_keep_items_associated_with_divergence()
-                keep_str = "_pruned"
-            else:
-                keep_items = None
-                keep_str = ""
-            print(keep_str)
+    for keep in keeps:
+        if keep:
+            keep_items = tree_discr.get_keep_items_associated_with_divergence()
+            keep_str = "_pruned"
+        else:
+            keep_items = None
+            keep_str = ""
+        print(keep_str)
+        for apply_generalization in [False, True]:
+            type_gen = 'generalized' if apply_generalization else 'base'
+            print(type_gen)
             for min_sup_divergence in min_sup_divergences:
                 print(min_sup_divergence, end = " ")
                 if df_analyze.shape[0] * min_sup_divergence < min_instances:
@@ -209,8 +234,35 @@ def run_pruning_experiemnt(dataset_name = 'wine', min_support_tree = 0.1,
                 del FP_fm
 
 
+        # # Store performance results
+
+        if save:
+            import os
+
+            output_results = os.path.join(os.path.curdir, output_dir, 'performance')
+            from pathlib import Path
+
+            Path(output_results).mkdir(parents=True, exist_ok=True)
+
+            conf_name = f"{dataset_name}_{metric}_{type_criterion}_{min_support_tree}{keep_str}_i"
+
+            import json
+            with open(os.path.join(output_results, f'{conf_name}_time.json'), 'w') as output_file:
+                output_file.write(json.dumps(out_time))
+
+
+            import json
+            with open(os.path.join(output_results, f'{conf_name}_fp.json'), 'w') as output_file:
+                output_file.write(json.dumps(out_fp))
+
+
+            with open(os.path.join(output_results, f'{conf_name}_div.json'), 'w') as output_file:
+                output_file.write(json.dumps(out_maxdiv))
+
+
     import os
     output_fig_dir = os.path.join(os.path.curdir, output_dir, "figures", "output_performance")
+
 
     if saveFig:
         
@@ -280,7 +332,7 @@ def run_pruning_experiemnt(dataset_name = 'wine', min_support_tree = 0.1,
 
 
     # # Store performance results
-
+    '''
     if save:
         import os
 
@@ -304,7 +356,7 @@ def run_pruning_experiemnt(dataset_name = 'wine', min_support_tree = 0.1,
         with open(os.path.join(output_results, f'{conf_name}_div.json'), 'w') as output_file:
             output_file.write(json.dumps(out_maxdiv))
 
-
+    '''
 
 import argparse
 
@@ -328,6 +380,17 @@ if __name__ == "__main__":
         help="specify not_show_figures to vizualize the plots. The results are stored into the specified outpur dir.",
     )
 
+    parser.add_argument(
+        "--no_pruning",
+        action="store_false",
+        help="specify pruning to run results with pruning",
+    )
+
+    parser.add_argument(
+        "--no_all",
+        action="store_false",
+        help="specify all to run results without pruning",
+    )
 
     parser.add_argument(
         "--dataset_name",
@@ -369,7 +432,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    run_pruning_experiemnt(min_support_tree = args.min_support_tree,
+    run_pruning_experiment(min_support_tree = args.min_support_tree,
     min_sup_divergences = args.min_sup_divergences,
     type_criterion=args.type_criterion,
     metric = args.metric,
@@ -378,5 +441,7 @@ if __name__ == "__main__":
         dataset_name = args.dataset_name,
         output_dir=args.name_output_dir,
         dataset_dir=args.dataset_dir,
-        min_instances=args.min_instances
+        min_instances=args.min_instances,
+        no_all = args.no_all,
+        no_pruning = args.no_pruning
     )
