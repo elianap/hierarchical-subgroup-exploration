@@ -24,6 +24,7 @@ def run_pruning_experiment(dataset_name = 'wine', min_support_tree = 0.1,
     saveFig = True,
     dataset_dir = DATASET_DIRECTORY,
     min_instances = 50,
+    take_top_k=None,
     no_all = True,
     no_pruning = True):
 
@@ -38,6 +39,14 @@ def run_pruning_experiment(dataset_name = 'wine', min_support_tree = 0.1,
     print('Criterion:', type_criterion)
 
     print('no_all', no_all, 'no_pruning', no_pruning)
+    print(f"take_top_k, take_top_k")
+
+    take_top_k_str= ''
+    if take_top_k is not None:
+        take_top_k_str = f'_top_{take_top_k}'
+
+        if type(take_top_k) != int:
+            raise ValueError(f'take_top_k should be a int, {take_top_k} was given')
 
 
 
@@ -168,7 +177,6 @@ def run_pruning_experiment(dataset_name = 'wine', min_support_tree = 0.1,
         keeps.append(False)
 
     import time
-
     for keep in keeps:
         if keep:
             keep_items = tree_discr.get_keep_items_associated_with_divergence()
@@ -244,7 +252,7 @@ def run_pruning_experiment(dataset_name = 'wine', min_support_tree = 0.1,
 
             Path(output_results).mkdir(parents=True, exist_ok=True)
 
-            conf_name = f"{dataset_name}_{metric}_{type_criterion}_{min_support_tree}{keep_str}_i"
+            conf_name = f"{dataset_name}_{metric}_{type_criterion}_{min_support_tree}{keep_str}{take_top_k_str}_i"
 
             import json
             with open(os.path.join(output_results, f'{conf_name}_time.json'), 'w') as output_file:
@@ -299,7 +307,7 @@ def run_pruning_experiment(dataset_name = 'wine', min_support_tree = 0.1,
                     info_plot[type_gen_str] = {}
                 info_plot[type_gen_str][float(sup)] = results[sup][type_gen]
 
-        figure_name = os.path.join(output_fig_dir, f"{dataset_name}_stree_{min_support_tree}_{metric}_{info_i}.pdf")
+        figure_name = os.path.join(output_fig_dir, f"{dataset_name}_{metric}_{type_criterion}_{min_support_tree}{keep_str}{take_top_k_str}_{info_i}.pdf")
         
         for type_gen_str in info_plot:
             info_plot[type_gen_str] = dict(sorted(info_plot[type_gen_str].items()))
@@ -321,6 +329,8 @@ def run_pruning_experiment(dataset_name = 'wine', min_support_tree = 0.1,
             ylabel="#FP"
             title="#FP" 
             
+                    
+
         
 
         plotDicts(info_plot, marker=True, \
@@ -430,12 +440,20 @@ if __name__ == "__main__":
         help="specify the number of minimum instances for statistical significance",
     )
 
+    parser.add_argument(
+        "--take_top_k",
+        type=int,
+        default=None,
+        help="specify the number tok k to store",
+    )
+
     args = parser.parse_args()
 
     run_pruning_experiment(min_support_tree = args.min_support_tree,
     min_sup_divergences = args.min_sup_divergences,
     type_criterion=args.type_criterion,
     metric = args.metric,
+    take_top_k = args.take_top_k,
     #save = True,
     #saveFig = True,
         dataset_name = args.dataset_name,
