@@ -1,4 +1,3 @@
-
 def check_target_inputs(class_name, pred_name, target_name):
     if target_name is None and (class_name is None and pred_name is None):
         raise ValueError("Specify the target column(s)")
@@ -42,12 +41,13 @@ def extract_divergence_generalized(
     type_experiment=None,
     verbose=False,
     keep_only_positive_divergent_items=None,
-    ):
+    take_top_k=None,
+    metric_top_k=None,
+):
     """
     keep_only_positive_divergent_items: if None, all are kept. Otherwise, keep only the one provided as input.
     """
     from copy import deepcopy
-
 
     generalization_dict_proc = deepcopy(generalization_dict)
     check_target_inputs(true_class_name, predicted_class_name, target_name)
@@ -132,7 +132,6 @@ def extract_divergence_generalized(
         FP_DivergenceExplorer_ranking,
     )
 
-
     fp_diver = FP_DivergenceExplorer_ranking(
         df_s_discretized,
         true_class_name=true_class_name,
@@ -141,9 +140,8 @@ def extract_divergence_generalized(
         class_map=class_map,
         generalizations_obj=generalizations_list,
         preserve_interval=preserve_interval,
-        already_in_one_hot_encoding=allow_overalp,       
+        already_in_one_hot_encoding=allow_overalp,
         keep_only_positive_divergent_items=keep_only_positive_divergent_items,
-
     )
 
     FP_fm_input = fp_diver.getFrequentPatternDivergence(
@@ -151,5 +149,7 @@ def extract_divergence_generalized(
         metrics=metrics_divergence,
         FPM_type=FPM_type,
         save_in_progress=save_in_progress,
+        take_top_k=take_top_k,
+        metric_top_k=metric_top_k,
     )
     return FP_fm_input
