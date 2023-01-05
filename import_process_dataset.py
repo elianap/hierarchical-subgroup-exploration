@@ -1,9 +1,11 @@
 import os
 import pandas as pd
 import numpy as np
+
 np.random.seed(42)
 
 DATASET_DIR = os.path.join(os.path.curdir, "datasets")
+
 
 def import_folkstables():
     filename_d = os.path.join(
@@ -124,7 +126,7 @@ def import_process_adult(inputDir=DATASET_DIR):
         "income-per-year",
     ]
 
-    #check_dataset_availability("credit-g.csv", inputDir=inputDir)
+    # check_dataset_availability("credit-g.csv", inputDir=inputDir)
     train = pd.read_csv(
         os.path.join(inputDir, "adult.data"),
         header=None,
@@ -133,7 +135,7 @@ def import_process_adult(inputDir=DATASET_DIR):
         na_values="?",
     )
 
-    #check_dataset_availability("adult.test", inputDir=inputDir)
+    # check_dataset_availability("adult.test", inputDir=inputDir)
 
     test = pd.read_csv(
         os.path.join(inputDir, "adult.test"),
@@ -155,16 +157,14 @@ def import_process_adult(inputDir=DATASET_DIR):
     )
     dt.dropna(inplace=True)
     dt.reset_index(drop=True, inplace=True)
-    
+
     dt.drop(columns=["native-country"], inplace=True)
     continuous_attributes = list(dt.describe().columns)
     return dt, {"N": "<=50K", "P": ">50K"}, continuous_attributes
 
 
-
-
 def import_compas():
-    
+
     risk_class_type = True
 
     from import_datasets import import_process_compas
@@ -184,34 +184,41 @@ def import_compas():
     return dfI, class_map, continuous_attributes
 
 
-def import_process_wine(input_dir = DATASET_DIR):
+def import_process_wine(input_dir=DATASET_DIR):
     df_all = []
 
-    for d in ['winequality-white', 'winequality-white']:
+    for d in ["winequality-white", "winequality-white"]:
         if os.path.isfile(os.path.join(input_dir, f"{d}.csv")):
-                df = pd.read_csv(os.path.join(input_dir, f"{d}.csv"), sep=";")
+            df = pd.read_csv(os.path.join(input_dir, f"{d}.csv"), sep=";")
         else:
-                df = pd.read_csv(f"https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/{d}.csv", sep=";")
+            df = pd.read_csv(
+                f"https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/{d}.csv",
+                sep=";",
+            )
 
-        df["quality"] = df["quality"].apply(lambda x: "good" if x>5 else "bad")
-        class_map = {'P': 'good', 'N': 'bad'}
-        df.rename(columns = {"quality": "class"}, inplace=True)
+        df["quality"] = df["quality"].apply(lambda x: "good" if x > 5 else "bad")
+        class_map = {"P": "good", "N": "bad"}
+        df.rename(columns={"quality": "class"}, inplace=True)
         df_all.append(df)
-        
+
     df = pd.concat(df_all)
-    df.reset_index(drop=True, inplace = True)
+    df.reset_index(drop=True, inplace=True)
     continuous_attributes = list(df.describe().columns)
 
     return df, class_map, continuous_attributes
 
 
+def train_classifier_kv(
+    df,
+    k_cv=10,
+    type_clf="rf",
+    class_name="class",
+    encoding=False,
+    categorical_attributes=None,
+):
 
-def train_classifier_kv(df, k_cv = 10, type_clf = 'rf', class_name = "class", encoding = False, categorical_attributes = None):
-
-    if type_clf != 'rf':
-        raise ValueError(f'{type_clf} not currently supported')
-
-    
+    if type_clf != "rf":
+        raise ValueError(f"{type_clf} not currently supported")
 
     from sklearn.model_selection import StratifiedKFold
     from sklearn.model_selection import cross_val_predict
@@ -220,11 +227,9 @@ def train_classifier_kv(df, k_cv = 10, type_clf = 'rf', class_name = "class", en
     import numpy as np
     from sklearn.preprocessing import LabelEncoder
 
-
     attributes = df.columns.drop(class_name)
     X = df[attributes].copy()
     y = df[class_name].copy()
-
 
     if encoding:
         encoders = {}
@@ -239,13 +244,12 @@ def train_classifier_kv(df, k_cv = 10, type_clf = 'rf', class_name = "class", en
                 X[column] = X[column].astype(int)
 
     clf = RandomForestClassifier(random_state=42)
-    
 
-    cv = StratifiedKFold(n_splits=k_cv, random_state=42, shuffle=True
-                )  # Added to fix the random state  #Added shuffle=True for new version sklearn, Value Error
-        
+    cv = StratifiedKFold(
+        n_splits=k_cv, random_state=42, shuffle=True
+    )  # Added to fix the random state  #Added shuffle=True for new version sklearn, Value Error
+
     y_predicted = cross_val_predict(clf, X, y.values, cv=cv)
-
 
     df["predicted"] = y_predicted
 
@@ -255,7 +259,7 @@ def train_classifier_kv(df, k_cv = 10, type_clf = 'rf', class_name = "class", en
 def check_dataset_availability(dataset_name, inputDir=DATASET_DIR):
     """
     Check if the dataset is available
-    
+
     """
     import os
 
@@ -297,94 +301,144 @@ def import_process_german(inputDir=DATASET_DIR):
     return df, {"P": "good", "N": "bad"}, continuous_attributes
 
 
-
 def import_process_online_shoppers_intention(inputDir=DATASET_DIR):
 
     if os.path.isfile(os.path.join(DATASET_DIR, "online_shoppers_intention.csv")):
 
-        df = pd.read_csv(os.path.join(DATASET_DIR, "online_shoppers_intention.csv"), sep=",")
+        df = pd.read_csv(
+            os.path.join(DATASET_DIR, "online_shoppers_intention.csv"), sep=","
+        )
     else:
-        df = pd.read_csv("http://archive.ics.uci.edu/ml/machine-learning-databases/00468/online_shoppers_intention.csv", sep=",")
+        df = pd.read_csv(
+            "http://archive.ics.uci.edu/ml/machine-learning-databases/00468/online_shoppers_intention.csv",
+            sep=",",
+        )
 
-    class_map = {'P': True, 'N': False}
-    df.rename(columns = {"Revenue": "class"}, inplace=True)
-    
-    df['Month'] = df['Month'].replace({'May': 5, 'Nov': 11, 'Mar': 3, 'Dec': 12, 'Oct': 10, 'Sep': 9, 'Aug': 8, 'Jul': 7, 'June': 6, 'Feb': 2})
+    class_map = {"P": True, "N": False}
+    df.rename(columns={"Revenue": "class"}, inplace=True)
+
+    df["Month"] = df["Month"].replace(
+        {
+            "May": 5,
+            "Nov": 11,
+            "Mar": 3,
+            "Dec": 12,
+            "Oct": 10,
+            "Sep": 9,
+            "Aug": 8,
+            "Jul": 7,
+            "June": 6,
+            "Feb": 2,
+        }
+    )
 
     continuous_attributes = list(df.describe().columns)
-    continuous_attributes.remove('SpecialDay')
+    continuous_attributes.remove("SpecialDay")
     return df, class_map, continuous_attributes
 
 
 def import_process_real_estate(inputDir=DATASET_DIR):
-    
-    
+
     check_dataset_availability("Daegu_Real_Estate_data.csv", inputDir=inputDir)
 
     df = pd.read_csv(os.path.join(DATASET_DIR, "Daegu_Real_Estate_data.csv"), sep=",")
 
     continuous_attributes = list(df.describe())
 
-    target = 'SalePrice'
+    target = "SalePrice"
 
     continuous_attributes.remove(target)
-    
+
     return df, target, continuous_attributes
 
 
-
-
-
-
-
-
-
-
-def generate_artificial_gaussian_error(n_attributes = 3, n = 10000):
+def generate_artificial_gaussian_error(n_attributes=3, n=10000):
     from scipy.stats import multivariate_normal
     from sklearn.preprocessing import MinMaxScaler
-
-
 
     X = np.random.uniform(low=-5, high=5, size=(n, n_attributes))
 
     mean = np.arange(n_attributes)
     cov = np.ones(n_attributes)
 
-    f_g = multivariate_normal(mean, cov)#, [1, 1, 1])
+    f_g = multivariate_normal(mean, cov)  # , [1, 1, 1])
     g = f_g.pdf(X)
 
     scaler = MinMaxScaler()
-    g_sc = np.round_(scaler.fit_transform(g.reshape(-1, 1))[:,0], 15)
-
+    g_sc = np.round_(scaler.fit_transform(g.reshape(-1, 1))[:, 0], 15)
 
     import string
+
     attributes = list(string.ascii_lowercase)[:n_attributes]
 
     g_attrs = []
 
     for id_attr in range(X.shape[1]):
-        g_attr = multivariate_normal.pdf(X[:,id_attr], mean=mean[id_attr], cov=cov[id_attr])
-        g_attr_norm = scaler.fit_transform(g_attr.reshape(-1, 1))[:,0]
+        g_attr = multivariate_normal.pdf(
+            X[:, id_attr], mean=mean[id_attr], cov=cov[id_attr]
+        )
+        g_attr_norm = scaler.fit_transform(g_attr.reshape(-1, 1))[:, 0]
         g_attrs.append(g_attr_norm)
 
     g_attrs = np.array(g_attrs)
 
-    classes = np.random.choice([0, 1], size=X.shape[0], p=[.5, .5])
+    classes = np.random.choice([0, 1], size=X.shape[0], p=[0.5, 0.5])
     opposed = 1 - classes
 
     values = np.vstack((classes, opposed)).T
 
-    predicted_classes = [ np.random.choice(values[i:i+1][0], 1,
-                              p = [1-g_sc[i], g_sc[i]])[0]
-            for i in range(0, g_sc.shape[0]) ]
+    predicted_classes = [
+        np.random.choice(values[i : i + 1][0], 1, p=[1 - g_sc[i], g_sc[i]])[0]
+        for i in range(0, g_sc.shape[0])
+    ]
     predicted_classes = np.asarray(predicted_classes)
 
-    df_analysis = pd.DataFrame(np.hstack((X, classes.reshape(-1,1), predicted_classes.reshape(-1,1))), \
-                               columns = attributes + ['class', 'predicted']).round(5)
+    df_analysis = pd.DataFrame(
+        np.hstack((X, classes.reshape(-1, 1), predicted_classes.reshape(-1, 1))),
+        columns=attributes + ["class", "predicted"],
+    ).round(5)
 
+    # min_max_vals = {attributes[e] : (min(X[:, 0]),max(X[:, 0])) for e in range(X.shape[1])}
 
-    #min_max_vals = {attributes[e] : (min(X[:, 0]),max(X[:, 0])) for e in range(X.shape[1])}
-
-    class_map={"P":1, "N":0}
+    class_map = {"P": 1, "N": 0}
     return df_analysis, class_map, attributes
+
+
+def import_process_default_payment(input_dir=DATASET_DIR):
+    if os.path.isfile(os.path.join(input_dir, "default_payment.csv")):
+        df = pd.read_excel(os.path.join(input_dir, "default_payment.csv"), skiprows=1)
+    else:
+
+        df = pd.read_excel(
+            "https://archive.ics.uci.edu/ml/machine-learning-databases/00350/default%20of%20credit%20card%20clients.xls",
+            skiprows=1,
+        )
+    df = df.drop(columns=["ID"])
+    df = df.rename(columns={"default payment next month": "class"})
+
+    from import_process_dataset import train_classifier_kv
+
+    continuous_attributes = [
+        "LIMIT_BAL",
+        "AGE",
+        "PAY_0",
+        "PAY_2",
+        "PAY_3",
+        "PAY_4",
+        "PAY_5",
+        "PAY_6",
+        "BILL_AMT1",
+        "BILL_AMT2",
+        "BILL_AMT3",
+        "BILL_AMT4",
+        "BILL_AMT5",
+        "BILL_AMT6",
+        "PAY_AMT1",
+        "PAY_AMT2",
+        "PAY_AMT3",
+        "PAY_AMT4",
+        "PAY_AMT5",
+        "PAY_AMT6",
+    ]
+    class_map = {"P": 1, "N": 0}
+    return df, class_map, continuous_attributes
