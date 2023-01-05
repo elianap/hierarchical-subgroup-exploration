@@ -711,7 +711,7 @@ class FP_DivergenceExplorer_ranking:
         verbose=0,
         cols_orderTP=["tn", "fp", "fn", "tp"],
         sortedV="support",
-        incompatible_items=None,  ### Handling generalization/taxonomy
+        attribute_id_mapping_for_compatibility=None,  ### Handling generalization/taxonomy
         save_in_progress=False,
         take_top_k=None,
         metric_top_k=None,
@@ -732,7 +732,7 @@ class FP_DivergenceExplorer_ranking:
             min_support=min_support,
             use_colnames=use_colnames,
             cols_orderTP=cols_orderTP,
-            incompatible_items=incompatible_items,
+            attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,
             save_in_progress=save_in_progress,
             take_top_k=take_top_k,
             metric_top_k=metric_top_k,
@@ -794,11 +794,22 @@ class FP_DivergenceExplorer_ranking:
             #     self.generalizations_obj if self.hasGeneralization else None
             # )
 
+            """
             incompatible_items = (
                 list(self.incompatible_items.values())
                 if self.hasGeneralization
                 else None
             )
+
+            """
+            if self.hasGeneralization:
+                attribute_id_mapping_for_compatibility = {}
+                for attribute, incompatibilities in self.incompatible_items.items():
+                    for item_id in incompatibilities:
+                        attribute_id_mapping_for_compatibility[item_id] = attribute
+            else:
+                attribute_id_mapping_for_compatibility = None
+
             if self.target_type == CLASSIFICATION:
                 input_data_targets = y_conf_matrix[conf_matrix_cols]
                 cols_orderTP = conf_matrix_cols
@@ -813,7 +824,7 @@ class FP_DivergenceExplorer_ranking:
                 min_support=min_support,
                 use_colnames=True,
                 sortedV=sortedV,
-                incompatible_items=incompatible_items,
+                attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,
                 save_in_progress=save_in_progress,
                 cols_orderTP=cols_orderTP,
                 take_top_k=take_top_k,

@@ -627,10 +627,10 @@ class FP_DivergenceExplorer:
         verbose=0,
         cols_orderTP=["tn", "fp", "fn", "tp"],
         sortedV="support",
-        incompatible_items=None,  ### Handling generalization/taxonomy
+        attribute_id_mapping_for_compatibility=None,  ### Handling generalization/taxonomy
         save_in_progress=False,
-        take_top_k = None, 
-        metric_top_k=None
+        take_top_k=None,
+        metric_top_k=None,
     ):
         from .utils_FPgrowth import fpgrowth_cm
 
@@ -640,10 +640,10 @@ class FP_DivergenceExplorer:
             min_support=min_support,
             use_colnames=use_colnames,
             cols_orderTP=cols_orderTP,
-            incompatible_items=incompatible_items,
+            attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,
             save_in_progress=save_in_progress,
-            take_top_k = take_top_k,
-            metric_top_k = metric_top_k
+            take_top_k=take_top_k,
+            metric_top_k=metric_top_k,
         )
         row_root = dict(df_confusion_matrix.sum())
         row_root.update({"support": 1, "itemsets": frozenset()})
@@ -668,18 +668,21 @@ class FP_DivergenceExplorer:
         FPM_type="fpgrowth",
         viz_col=False,
         save_in_progress=False,
-        take_top_k = None,
-        metric_top_k = None
+        take_top_k=None,
+        metric_top_k=None,
     ):
 
-        
         if take_top_k is not None:
             if metric_top_k is None:
                 metric_top_k = metrics[0]
             if type(metric_top_k) != str:
-                raise ValueError(f'metric_top_k is the metric we optimize. {metric_top_k} was given')
-            if type(take_top_k)!=int:
-                raise ValueError(f'take_top_k defines the top k to consider in the extraction process. {take_top_k} was given.')
+                raise ValueError(
+                    f"metric_top_k is the metric we optimize. {metric_top_k} was given"
+                )
+            if type(take_top_k) != int:
+                raise ValueError(
+                    f"take_top_k defines the top k to consider in the extraction process. {take_top_k} was given."
+                )
         if (
             min_support in self.FP_metric_support
             and "FM" in self.FP_metric_support[min_support]
@@ -699,12 +702,21 @@ class FP_DivergenceExplorer:
             # generalization = (
             #     self.generalizations_obj if self.hasGeneralization else None
             # )
-
+            """
             incompatible_items = (
                 list(self.incompatible_items.values())
                 if self.hasGeneralization
                 else None
             )
+            """
+
+            if self.hasGeneralization:
+                attribute_id_mapping_for_compatibility = {}
+                for attribute, incompatibilities in self.incompatible_items.items():
+                    for item_id in incompatibilities:
+                        attribute_id_mapping_for_compatibility[item_id] = attribute
+            else:
+                attribute_id_mapping_for_compatibility = None
 
             # TODO
             df_FP_metrics = self.fpgrowth_divergence_metrics(
@@ -713,10 +725,10 @@ class FP_DivergenceExplorer:
                 min_support=min_support,
                 use_colnames=True,
                 sortedV=sortedV,
-                incompatible_items=incompatible_items,
+                attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,
                 save_in_progress=save_in_progress,
-                take_top_k = take_top_k,
-                metric_top_k = metric_top_k
+                take_top_k=take_top_k,
+                metric_top_k=metric_top_k,
             )
 
         else:
@@ -736,8 +748,8 @@ class FP_DivergenceExplorer:
                     # generalization=self.generalizations_obj,
                     incompatible_items=self.incompatible_items,
                     save_in_progress=save_in_progress,
-                    take_top_k = take_top_k,
-                    metric_top_k = metric_top_k
+                    take_top_k=take_top_k,
+                    metric_top_k=metric_top_k,
                 )
             else:
                 df_FP_metrics = self.apriori_divergence(
@@ -748,10 +760,10 @@ class FP_DivergenceExplorer:
                     sortedV=sortedV,
                 )
 
-        #TODO. In the case of take_top_k we are redoing it.. 
+        # TODO. In the case of take_top_k we are redoing it..
         df_FP_divergence = self.computeDivergenceItemsets(
-                df_FP_metrics, metrics=metrics
-            )
+            df_FP_metrics, metrics=metrics
+        )
 
         if min_support not in self.FP_metric_support:
             self.FP_metric_support[min_support] = {}
@@ -882,7 +894,6 @@ def compute_divergence_itemsets(
     from .utils_metrics_FPx import getInfoRoot
 
     infoRoot = getInfoRoot(fm_df)
-
 
     if "d_fnr" in metrics:
         fm_df["d_fnr"] = fm_df["fnr"] - infoRoot["fnr"].values[0]

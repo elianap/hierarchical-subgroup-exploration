@@ -126,7 +126,7 @@ def generate_itemsets(
     num_itemsets,
     colname_map,
     cols_orderTP=["tn", "fp", "fn", "tp"],
-    incompatible_items=None,  ### Handling generalization/taxonomy
+    attribute_id_mapping_for_compatibility=None,  ### Handling generalization/taxonomy
     save_in_progress=False,
     take_top_k=None,
     metric_top_k=None,
@@ -161,13 +161,6 @@ def generate_itemsets(
     for sup, iset, cf_final in generator:
         ### Handling generalization/taxonomy
         compatible = True
-        # if incompatible_items is not None and len(iset) > 1:
-        #     # TODO: avoid generating unless terms
-        #     # TODO Check test in fpg_step --> if ok, remove this test
-        #     for incompatible_term_i in incompatible_items:
-        #         if len(set(iset).intersection(incompatible_term_i)) > 1:
-        #             compatible = False
-        #             break
 
         if compatible:
             count = count + 1
@@ -518,7 +511,7 @@ def fpgrowth_cm(
     max_len=None,
     verbose=0,
     cols_orderTP=["tn", "fp", "fn", "tp"],
-    incompatible_items=None,  ### Handling generalization/taxonomy
+    attribute_id_mapping_for_compatibility=None,  ### Handling generalization/taxonomy
     save_in_progress=False,
     take_top_k=None,
     metric_top_k=None,
@@ -602,7 +595,7 @@ def fpgrowth_cm(
         colname_map,
         max_len,
         verbose,
-        incompatible_items=incompatible_items,
+        attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,
     )
     len_dataset = df.shape[0]
     return generate_itemsets(
@@ -610,7 +603,7 @@ def fpgrowth_cm(
         len(df.index),
         colname_map,
         cols_orderTP=cols_orderTP,
-        incompatible_items=incompatible_items,  ### Handling generalization/taxonomy
+        attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,  ### Handling generalization/taxonomy
         save_in_progress=save_in_progress,
         take_top_k=take_top_k,
         metric_top_k=metric_top_k,
@@ -619,7 +612,7 @@ def fpgrowth_cm(
     )
 
 
-def check_compatibility(iset, incompatible_items):
+def check_compatibility_v1(iset, incompatible_items):
     compatible = True
     if incompatible_items is not None and len(iset) > 1:
         # TODO: avoid generating unless terms
@@ -645,7 +638,32 @@ def check_compatibility(iset, incompatible_items):
     return compatible
 
 
-def fpg_step(tree, minsup, colnames, max_len, verbose, incompatible_items=None):
+def check_compatibility(iset, attribute_id_mapping_for_compatibility):
+    """
+    Args:
+        iset: current itemset to evaluate
+        attribute_id_mapping_for_compatibility: dictionary item_id:attribute_name
+    """
+
+    # TODO, add check if indeed necessary
+    compatible = True
+    if attribute_id_mapping_for_compatibility is not None and len(iset) > 1:
+        itemset_attributes = [
+            attribute_id_mapping_for_compatibility[item_id] for item_id in iset
+        ]
+        if len(set(itemset_attributes)) != len(itemset_attributes):
+            compatible = False
+    return compatible
+
+
+def fpg_step(
+    tree,
+    minsup,
+    colnames,
+    max_len,
+    verbose,
+    attribute_id_mapping_for_compatibility=None,
+):
     """
     Performs a recursive step of the fpgrowth algorithm.
     Parameters
@@ -677,7 +695,8 @@ def fpg_step(tree, minsup, colnames, max_len, verbose, incompatible_items=None):
                 # ADDED CONDITION IMPORTANT
                 #
                 iset = tree.cond_items + list(itemset)
-                if check_compatibility(iset, incompatible_items):
+                # if check_compatibility(iset, incompatible_items):
+                if check_compatibility(iset, attribute_id_mapping_for_compatibility):
                     yield support, iset, cf_y
     elif not max_len or max_len > len(tree.cond_items):
         for item in items:
@@ -698,7 +717,7 @@ def fpg_step(tree, minsup, colnames, max_len, verbose, incompatible_items=None):
             #     cf_y += node.confusion_matrix
             #     support += node.count
             iset = tree.cond_items + [item]
-            if check_compatibility(iset, incompatible_items):
+            if check_compatibility(iset, attribute_id_mapping_for_compatibility):
                 yield support, iset, cf_y
 
     if verbose:
@@ -715,7 +734,7 @@ def fpg_step(tree, minsup, colnames, max_len, verbose, incompatible_items=None):
                 colnames,
                 max_len,
                 verbose,
-                incompatible_items=incompatible_items,
+                attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,
             ):
-                if check_compatibility(iset, incompatible_items):
+                if check_compatibility(iset, attribute_id_mapping_for_compatibility):
                     yield sup, iset, cf_y
