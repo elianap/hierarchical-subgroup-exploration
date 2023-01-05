@@ -523,7 +523,10 @@ class TreeDivergence_ranking:
                             "attr": attr_name,
                             "vals": (val, val2),
                             "rel": ("=", rel2),
-                            "indexes": [id_eq, id_diff,],
+                            "indexes": [
+                                id_eq,
+                                id_diff,
+                            ],
                             "criterion": split_node.split_criterion,
                             "divergence": [
                                 split_node.split_node_1.divergence,
@@ -1329,7 +1332,10 @@ class TreeDivergence_ranking:
         return generalization_dict, discretizations, keep_info_parent_nodes
 
     def visualizeTreeDiGraph(
-        self, abbreviations={}, rels={">=": "≥", "<=": "≤"}, all_info=True,
+        self,
+        abbreviations={},
+        rels={">=": "≥", "<=": "≤"},
+        all_info=True,
     ):
 
         from utils_print_tree import getTreeDiGraph
@@ -1379,6 +1385,32 @@ class TreeDivergence_ranking:
                 )
         else:
             n_leaf.append(f"{node.attr}{node.rel}{node.val}")
+
+    def get_keep_items_for_attributes(self):
+        """
+        For a given attribute, get the items to keep: the one that are associated with divergence (>0)
+        """
+        tree = self.tree
+        keep_items = []
+        self._iterate_and_get_divergent_node_relevant(tree, keep_items)
+
+        return keep_items
+
+    def _iterate_and_get_divergent_node_relevant(self, node, keep_items):
+
+        """
+        Recursively iterate over the tree to get the items with positive divergence. These are the ones associated with a divergence behavior.
+        """
+
+        has_children = True if node.children else False
+
+        if node.item_name != None and node.metric > 0:
+            keep_items.append(node.item_name)
+
+        if has_children:
+            for child in node.children:
+                self._iterate_and_get_divergent_node_relevant(child, keep_items)
+
 
 
 class Node:

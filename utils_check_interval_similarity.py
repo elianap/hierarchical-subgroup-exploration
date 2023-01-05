@@ -223,6 +223,7 @@ def check_tree_interval_similarity_with_bias(
     injected_biases,
     apply_generalization=False,
     modality="consider_attribute_hierarchy",
+    ver2=False,
 ):
     # Interval_similarity: Max f-measure injected bias matching,  max matching
     # interval_similarity_detail: Summary stats of injected bias matching --> all matching
@@ -254,6 +255,7 @@ def check_tree_interval_similarity_with_bias(
                         generalization_dict=generalization_dict,
                         apply_generalization=apply_generalization,
                         modality=modality,
+                        ver2=ver2,
                     )
 
                     min_max_values = t.min_max_for_attribute
@@ -281,6 +283,7 @@ def check_tree_interval_similarity_with_bias(
             tree_discretization_intervals = t.get_discretization_intervals(
                 apply_generalization=apply_generalization,
                 generalization_dict=tree_discr.generalization_dict,
+                ver2=ver2,
             )
             min_max_values = t.min_max_for_attribute
             (

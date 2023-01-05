@@ -165,7 +165,7 @@ class TreeDiscretization:
             class_map,
             metric=metric,  # Metric to optimize --> we optimize one metric at the time
             minimum_support=min_support,
-            class_name=class_and_pred_names[0], 
+            class_name=class_and_pred_names[0],
             pred_name=class_and_pred_names[1],
             **kwargs,
         )
@@ -246,7 +246,7 @@ class TreeDiscretization:
                 class_map,
                 metric=metric,
                 minimum_support=min_support,
-                class_name=class_and_pred_names[0], 
+                class_name=class_and_pred_names[0],
                 pred_name=class_and_pred_names[1],
                 **kwargs,
             )
@@ -287,3 +287,25 @@ class TreeDiscretization:
             n_internal_nodes = self.trees.get_number_internal_nodes()
             n_leaf_nodes = self.trees.get_number_leaf_nodes()
         return n_internal_nodes, n_leaf_nodes
+
+    def get_keep_items_associated_with_divergence(self):
+
+        """
+        Given the original generalization_dict and discretization_dict, it keeps only the items that are indeed associated with a divergent behavior.
+        Hence, the ones that positevely contribute to the divergence.
+
+        Args:
+            self
+            generalization_dict (dict): the original dictionary of generalizatiion
+            discretizations (dict): the original dictionary of discretization
+
+        Returns
+            dict : new generalization, with only positively divergent terms
+            dict: new discretization, with only positively divergent terms
+        """
+        items_keep = {}
+        for attribute in self.trees:
+            items_keep[attribute] = self.trees[
+                attribute
+            ].get_keep_items_for_attributes()
+        return items_keep

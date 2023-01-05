@@ -86,19 +86,59 @@ def write_csv_in_chunck(df_chunck, filename, i):
         df_chunck.to_csv(f"{filename}", mode="a", header=False, index=False)
 
 
+def _get_df_top_k(
+    res_df,
+    take_top_k,
+    metric_top_k,
+    row_root=[],
+    df_top_k=None,
+    cols_orderTP=["tn", "fp", "fn", "tp"],
+    len_dataset=None,
+):
+    """
+    For the average score we also need the len_dataset
+    """
+    res_df = pd.concat([res_df, row_root])
+
+    from divexplorer_generalized_ranking.FP_DivergenceExplorer import (
+        compute_divergence_itemsets,
+    )
+
+    res_df = compute_divergence_itemsets(
+        res_df,
+        metrics=[metric_top_k],
+        cols_orderTP=cols_orderTP,
+        len_dataset=len_dataset,
+    )
+    # Drop empty set
+    res_df.drop(res_df.tail(1).index, inplace=True)
+    if df_top_k is None:
+        # First assignment
+        df_top_k = res_df
+    else:
+        df_top_k = pd.concat([df_top_k, res_df])
+    df_top_k = df_top_k.sort_values(metric_top_k, ascending=False).iloc[0:take_top_k]
+    return df_top_k
+
+
 def generate_itemsets(
     generator,
     num_itemsets,
     colname_map,
     cols_orderTP=["tn", "fp", "fn", "tp"],
-    incompatible_items=None,  ### Handling generalization/taxonomy
+    attribute_id_mapping_for_compatibility=None,  ### Handling generalization/taxonomy
     save_in_progress=False,
+    take_top_k=None,
+    metric_top_k=None,
+    row_root=None,
+    len_dataset=None,
 ):
     chunck_size = 10000
     itemsets = []
     supports = []
     c_dict = {}
-
+    if take_top_k is not None:
+        df_top_k = None
     # c1, c2, c3, c4 = [], [], [], []
     for i_c_dict in range(0, len(cols_orderTP)):
         c_dict[i_c_dict] = []
@@ -121,13 +161,6 @@ def generate_itemsets(
     for sup, iset, cf_final in generator:
         ### Handling generalization/taxonomy
         compatible = True
-        # if incompatible_items is not None and len(iset) > 1:
-        #     # TODO: avoid generating unless terms
-        #     # TODO Check test in fpg_step --> if ok, remove this test
-        #     for incompatible_term_i in incompatible_items:
-        #         if len(set(iset).intersection(incompatible_term_i)) > 1:
-        #             compatible = False
-        #             break
 
         if compatible:
             count = count + 1
@@ -143,7 +176,7 @@ def generate_itemsets(
             if int(count / chunck_size) > p:
                 p = int(count / chunck_size)
                 print(p, count)
-                if save_in_progress:
+                if save_in_progress or take_top_k is not None:
                     # res_df = pd.DataFrame(
                     #     {
                     #         "support": supports,
@@ -159,19 +192,33 @@ def generate_itemsets(
                     res_dic.update({cols_orderTP[i]: c_dict[i] for i in c_dict})
                     res_df = pd.DataFrame(res_dic)
 
-                    if colname_map is not None:
-                        res_df["itemsets"] = res_df["itemsets"].apply(
-                            lambda x: [colname_map[i] for i in x]
-                        )
                     supports.clear()
                     itemsets.clear()
-                    # c1.clear()
-                    # c2.clear()
-                    # c3.clear()
-                    # c4.clear()
                     for i_c_dict in range(0, len(cols_orderTP)):
                         c_dict[i_c_dict] = []
-                    write_csv_in_chunck(res_df, filename, p)
+
+                    if save_in_progress:
+                        if colname_map is not None:
+                            res_df["itemsets"] = res_df["itemsets"].apply(
+                                lambda x: [colname_map[i] for i in x]
+                            )
+                        write_csv_in_chunck(res_df, filename, p)
+
+                    if take_top_k is not None:
+                        # Update top k
+                        if colname_map is not None:
+                            res_df["itemsets"] = res_df["itemsets"].apply(
+                                lambda x: frozenset([colname_map[i] for i in x])
+                            )
+                        df_top_k = _get_df_top_k(
+                            res_df,
+                            take_top_k,
+                            metric_top_k,
+                            row_root=row_root,
+                            df_top_k=df_top_k,
+                            cols_orderTP=cols_orderTP,
+                            len_dataset=len_dataset,
+                        )
                     res_df = res_df[0:0]
 
     if save_in_progress:
@@ -240,6 +287,23 @@ def generate_itemsets(
             res_df["itemsets"] = res_df["itemsets"].apply(
                 lambda x: frozenset([colname_map[i] for i in x])
             )
+        if take_top_k is not None:
+            # Update top k
+            df_top_k = _get_df_top_k(
+                res_df,
+                take_top_k,
+                metric_top_k,
+                row_root=row_root,
+                df_top_k=df_top_k,
+                cols_orderTP=cols_orderTP,
+                len_dataset=len_dataset,
+            )
+
+    if take_top_k:
+        # Return all columns except the divergence and the t_value cols
+        ret_cols = list(df_top_k.columns)[0:-2]
+        print("EP FP", count)
+        return df_top_k[ret_cols]
 
     return res_df
 
@@ -447,8 +511,10 @@ def fpgrowth_cm(
     max_len=None,
     verbose=0,
     cols_orderTP=["tn", "fp", "fn", "tp"],
-    incompatible_items=None,  ### Handling generalization/taxonomy
+    attribute_id_mapping_for_compatibility=None,  ### Handling generalization/taxonomy
     save_in_progress=False,
+    take_top_k=None,
+    metric_top_k=None,
 ):
     """Get frequent itemsets from a one-hot DataFrame
     Parameters
@@ -502,6 +568,14 @@ def fpgrowth_cm(
     """
     valid_input_check(df)
 
+    row_root = None
+
+    if take_top_k is not None:
+        # We take the first top K. For the divergence we need the measure on the overall datasrt
+        row_root = dict(df_targets.sum())
+        row_root.update({"support": 1, "itemsets": frozenset()})
+        row_root = pd.DataFrame([row_root])
+
     if min_support <= 0.0:
         raise ValueError(
             "`min_support` must be a positive "
@@ -521,32 +595,75 @@ def fpgrowth_cm(
         colname_map,
         max_len,
         verbose,
-        incompatible_items=incompatible_items,
+        attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,
     )
-
+    len_dataset = df.shape[0]
     return generate_itemsets(
         generator,
         len(df.index),
         colname_map,
         cols_orderTP=cols_orderTP,
-        incompatible_items=incompatible_items,  ### Handling generalization/taxonomy
+        attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,  ### Handling generalization/taxonomy
         save_in_progress=save_in_progress,
+        take_top_k=take_top_k,
+        metric_top_k=metric_top_k,
+        row_root=row_root,
+        len_dataset=len_dataset,  # to compute the support count we need the len of the dataset
     )
 
 
-def check_compatibility(iset, incompatible_items):
+def check_compatibility_v1(iset, incompatible_items):
     compatible = True
     if incompatible_items is not None and len(iset) > 1:
         # TODO: avoid generating unless terms
         for incompatible_term_i in incompatible_items:
+
+            cnt = 0
+            for i in iset:
+                if i in incompatible_term_i:
+                    cnt += 1
+                    if cnt > 1:
+                        compatible = False
+
+                        break
+
+            if compatible is False:
+                break
+
+            """
             if len(set(iset).intersection(incompatible_term_i)) > 1:
                 compatible = False
                 break
-
+            """
     return compatible
 
 
-def fpg_step(tree, minsup, colnames, max_len, verbose, incompatible_items=None):
+def check_compatibility(iset, attribute_id_mapping_for_compatibility):
+    """
+    Args:
+        iset: current itemset to evaluate
+        attribute_id_mapping_for_compatibility: dictionary item_id:attribute_name
+    """
+
+    # TODO, add check if indeed necessary
+    compatible = True
+    if attribute_id_mapping_for_compatibility is not None and len(iset) > 1:
+        itemset_attributes = [
+            attribute_id_mapping_for_compatibility[item_id] for item_id in iset
+        ]
+        if len(set(itemset_attributes)) != len(itemset_attributes):
+            compatible = False
+    return compatible
+
+
+def fpg_step(
+    tree,
+    minsup,
+    colnames,
+    max_len,
+    verbose,
+    attribute_id_mapping_for_compatibility=None,
+):
     """
     Performs a recursive step of the fpgrowth algorithm.
     Parameters
@@ -578,7 +695,8 @@ def fpg_step(tree, minsup, colnames, max_len, verbose, incompatible_items=None):
                 # ADDED CONDITION IMPORTANT
                 #
                 iset = tree.cond_items + list(itemset)
-                if check_compatibility(iset, incompatible_items):
+                # if check_compatibility(iset, incompatible_items):
+                if check_compatibility(iset, attribute_id_mapping_for_compatibility):
                     yield support, iset, cf_y
     elif not max_len or max_len > len(tree.cond_items):
         for item in items:
@@ -599,7 +717,7 @@ def fpg_step(tree, minsup, colnames, max_len, verbose, incompatible_items=None):
             #     cf_y += node.confusion_matrix
             #     support += node.count
             iset = tree.cond_items + [item]
-            if check_compatibility(iset, incompatible_items):
+            if check_compatibility(iset, attribute_id_mapping_for_compatibility):
                 yield support, iset, cf_y
 
     if verbose:
@@ -616,7 +734,7 @@ def fpg_step(tree, minsup, colnames, max_len, verbose, incompatible_items=None):
                 colnames,
                 max_len,
                 verbose,
-                incompatible_items=incompatible_items,
+                attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,
             ):
-                if check_compatibility(iset, incompatible_items):
+                if check_compatibility(iset, attribute_id_mapping_for_compatibility):
                     yield sup, iset, cf_y

@@ -1390,6 +1390,32 @@ class TreeDivergence_unique:
             n_leaf.append(f"{node.attr}{node.rel}{node.val}")
 
 
+    def get_keep_items_for_attributes(self):
+        """
+        For a given attribute, get the items to keep: the one that are associated with divergence (>0)
+        """
+        tree = self.tree
+        keep_items = []
+        self._iterate_and_get_divergent_node_relevant(tree, keep_items)
+
+        return keep_items
+
+    def _iterate_and_get_divergent_node_relevant(self, node, keep_items):
+
+        """
+        Recursively iterate over the tree to get the items with positive divergence. These are the ones associated with a divergence behavior.
+        """
+
+        has_children = True if node.children else False
+
+        if node.item_name != None and node.metric > 0:
+            keep_items.append(node.item_name)
+
+        if has_children:
+            for child in node.children:
+                self._iterate_and_get_divergent_node_relevant(child, keep_items)
+
+
 class Node:
     def __init__(
         self,

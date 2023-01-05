@@ -56,6 +56,80 @@ def _compute_mean_beta_distribution(FPb):
     return FPb.a / (FPb.a + FPb.b)
 
 
+def _keep_only_admitted(X_oh, incompatible, keep_items):
+    """
+    Args
+        X_oh (pandas.DataFrame): dataframe in one hot encoding. Discretized items + generalized ones
+        incompatible (dict): {attribute: {frozenset of incompatible items}}
+        keep_items (dict): {attribute: [admitted items]}
+
+    Returs:
+        pandas.DataFrame: updated dataframe in one hot encoding with only the admitted items
+        dict: updated incompatible dictionary
+    """
+    # TODO remove deepcopy
+    from copy import deepcopy
+
+    X_pruned = deepcopy(X_oh)
+    incompatible_pruned = deepcopy(incompatible)
+
+    oh_cols = list(X_pruned.columns)
+
+    items_removed = 0
+    for e, col in enumerate(oh_cols):
+        s = col.split("=")
+        attr = s[0]
+        val = "=".join(s[1:])
+
+        if attr in keep_items:
+            if val not in keep_items[attr]:
+
+                id_item_to_remove = e - items_removed
+                items_removed += 1
+                X_pruned.drop(columns=[col], inplace=True)
+                for attribute in incompatible_pruned:
+                    vals = []
+                    for val in incompatible_pruned[attribute]:
+                        if val == id_item_to_remove:
+                            continue
+                        if val > id_item_to_remove:
+                            val -= 1
+                        vals.append(val)
+                    incompatible_pruned[attribute] = frozenset(vals)
+    return X_pruned, incompatible_pruned
+
+
+def _keep_only_admitted_single_discretization(X_oh, keep_items):
+    """
+    We directly drop the not admitted items
+    Args
+        X_oh (pandas.DataFrame): dataframe in one hot encoding. Discretized items + generalized ones
+
+        keep_items (dict): {attribute: [admitted items]}
+
+    Returs:
+        pandas.DataFrame: updated dataframe in one hot encoding with only the admitted items
+        dict: updated incompatible dictionary
+    """
+    # TODO remove deepcopy
+    from copy import deepcopy
+
+    X_pruned = deepcopy(X_oh)
+
+    oh_cols = list(X_pruned.columns)
+
+    items_removed = 0
+    for e, col in enumerate(oh_cols):
+        s = col.split("=")
+        attr = s[0]
+        val = "=".join(s[1:])
+
+        if attr in keep_items:
+            if val not in keep_items[attr]:
+                X_pruned.drop(columns=[col], inplace=True)
+    return X_pruned
+
+
 class FP_DivergenceExplorer:
     def __init__(
         self,
@@ -72,8 +146,16 @@ class FP_DivergenceExplorer:
         preserve_interval=None,
         sep="=",
         already_in_one_hot_encoding=False,
+        keep_only_positive_divergent_items=None,
     ):
         # TODO now function in import dataset
+
+        if keep_only_positive_divergent_items is not None:
+            if type(keep_only_positive_divergent_items) != dict:
+                raise ValueError(
+                    "The input should be a dictionary. Attribute: [admitted items]"
+                )
+
         cols = (
             [true_class_name, predicted_class_name] + ignore_cols
             if predicted_class_name is not None
@@ -122,6 +204,7 @@ class FP_DivergenceExplorer:
             )
 
             if self.new_remapped_columns:
+
                 for attribute, incompatible_set in self.incompatible_items.items():
 
                     replaced_incompatible = frozenset(
@@ -132,6 +215,19 @@ class FP_DivergenceExplorer:
                         ]
                     )
                     self.incompatible_items[attribute] = replaced_incompatible
+
+            if keep_only_positive_divergent_items is not None:
+                self.X, self.incompatible_items = _keep_only_admitted(
+                    self.X, self.incompatible_items, keep_only_positive_divergent_items
+                )
+
+        else:
+
+            if keep_only_positive_divergent_items is not None:
+                # Keep only the admitted ones also in the case of single discretizatiion without generalization
+                self.X = _keep_only_admitted_single_discretization(
+                    self.X, keep_only_positive_divergent_items
+                )
 
         self.y_predicted = (
             X_discrete[predicted_class_name].copy().values
@@ -531,8 +627,10 @@ class FP_DivergenceExplorer:
         verbose=0,
         cols_orderTP=["tn", "fp", "fn", "tp"],
         sortedV="support",
-        incompatible_items=None,  ### Handling generalization/taxonomy
+        attribute_id_mapping_for_compatibility=None,  ### Handling generalization/taxonomy
         save_in_progress=False,
+        take_top_k=None,
+        metric_top_k=None,
     ):
         from .utils_FPgrowth import fpgrowth_cm
 
@@ -542,12 +640,15 @@ class FP_DivergenceExplorer:
             min_support=min_support,
             use_colnames=use_colnames,
             cols_orderTP=cols_orderTP,
-            incompatible_items=incompatible_items,
+            attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,
             save_in_progress=save_in_progress,
+            take_top_k=take_top_k,
+            metric_top_k=metric_top_k,
         )
         row_root = dict(df_confusion_matrix.sum())
         row_root.update({"support": 1, "itemsets": frozenset()})
-        fp = fp.append(row_root, ignore_index=True)
+        row_root = pd.DataFrame([row_root])
+        fp = pd.concat([fp, row_root])
         fp["length"] = fp["itemsets"].str.len()
 
         fp["support_count"] = (fp["support"] * len(df)).round()
@@ -567,8 +668,21 @@ class FP_DivergenceExplorer:
         FPM_type="fpgrowth",
         viz_col=False,
         save_in_progress=False,
+        take_top_k=None,
+        metric_top_k=None,
     ):
 
+        if take_top_k is not None:
+            if metric_top_k is None:
+                metric_top_k = metrics[0]
+            if type(metric_top_k) != str:
+                raise ValueError(
+                    f"metric_top_k is the metric we optimize. {metric_top_k} was given"
+                )
+            if type(take_top_k) != int:
+                raise ValueError(
+                    f"take_top_k defines the top k to consider in the extraction process. {take_top_k} was given."
+                )
         if (
             min_support in self.FP_metric_support
             and "FM" in self.FP_metric_support[min_support]
@@ -588,12 +702,21 @@ class FP_DivergenceExplorer:
             # generalization = (
             #     self.generalizations_obj if self.hasGeneralization else None
             # )
-
+            """
             incompatible_items = (
                 list(self.incompatible_items.values())
                 if self.hasGeneralization
                 else None
             )
+            """
+
+            if self.hasGeneralization:
+                attribute_id_mapping_for_compatibility = {}
+                for attribute, incompatibilities in self.incompatible_items.items():
+                    for item_id in incompatibilities:
+                        attribute_id_mapping_for_compatibility[item_id] = attribute
+            else:
+                attribute_id_mapping_for_compatibility = None
 
             # TODO
             df_FP_metrics = self.fpgrowth_divergence_metrics(
@@ -602,8 +725,10 @@ class FP_DivergenceExplorer:
                 min_support=min_support,
                 use_colnames=True,
                 sortedV=sortedV,
-                incompatible_items=incompatible_items,
+                attribute_id_mapping_for_compatibility=attribute_id_mapping_for_compatibility,
                 save_in_progress=save_in_progress,
+                take_top_k=take_top_k,
+                metric_top_k=metric_top_k,
             )
 
         else:
@@ -623,6 +748,8 @@ class FP_DivergenceExplorer:
                     # generalization=self.generalizations_obj,
                     incompatible_items=self.incompatible_items,
                     save_in_progress=save_in_progress,
+                    take_top_k=take_top_k,
+                    metric_top_k=metric_top_k,
                 )
             else:
                 df_FP_metrics = self.apriori_divergence(
@@ -632,6 +759,8 @@ class FP_DivergenceExplorer:
                     use_colnames=True,
                     sortedV=sortedV,
                 )
+
+        # TODO. In the case of take_top_k we are redoing it..
         df_FP_divergence = self.computeDivergenceItemsets(
             df_FP_metrics, metrics=metrics
         )
@@ -681,3 +810,150 @@ class FP_DivergenceExplorer:
             )
             self.FP_metric_support[min_support]["FM"] = FPb
         return FPb
+
+
+def compute_divergence_itemsets(
+    fm_df,
+    metrics=["d_fpr", "d_fnr", "d_accuracy"],
+    cols_orderTP=["tn", "fp", "fn", "tp"],
+):
+
+    # TODO - REFACTOR CODE
+
+    if "d_fpr" in metrics:
+        from .utils_metrics_FPx import fpr_df
+
+        fm_df["fpr"] = fpr_df(fm_df[cols_orderTP])
+
+    if "d_fnr" in metrics:
+        from .utils_metrics_FPx import fnr_df
+
+        fm_df["fnr"] = fnr_df(fm_df[cols_orderTP])
+
+    if "d_accuracy" in metrics:
+        from .utils_metrics_FPx import accuracy_df
+
+        fm_df["accuracy"] = accuracy_df(fm_df[cols_orderTP])
+
+    if "d_error" in metrics:
+        from .utils_metrics_FPx import classification_error_df
+
+        fm_df["error"] = classification_error_df(fm_df[cols_orderTP])
+
+    if "d_ppv" in metrics:
+        from .utils_metrics_FPx import positive_predicted_value_df
+
+        fm_df["ppv"] = positive_predicted_value_df(fm_df[cols_orderTP])
+
+    if "d_tpr" in metrics:
+        from .utils_metrics_FPx import true_positive_rate_df
+
+        fm_df["tpr"] = true_positive_rate_df(fm_df[cols_orderTP])
+
+    if "d_tnr" in metrics:
+        from .utils_metrics_FPx import true_negative_rate_df
+
+        fm_df["tnr"] = true_negative_rate_df(fm_df[cols_orderTP])
+
+    if "d_npv" in metrics:
+        from .utils_metrics_FPx import negative_predicted_value_df
+
+        fm_df["npv"] = negative_predicted_value_df(fm_df[cols_orderTP])
+
+    if "d_fdr" in metrics:
+        from .utils_metrics_FPx import false_discovery_rate_df
+
+        fm_df["fdr"] = false_discovery_rate_df(fm_df[cols_orderTP])
+
+    if "d_for" in metrics:
+        from .utils_metrics_FPx import false_omission_rate_df
+
+        fm_df["for"] = false_omission_rate_df(fm_df[cols_orderTP])
+
+    if "d_posr" in metrics:
+        # TODO
+        from .utils_metrics_FPx import getInfoRoot
+
+        rootIndex = getInfoRoot(fm_df).index
+        from .utils_metrics_FPx import get_pos, posr_df
+
+        fm_df["P"] = get_pos(fm_df[cols_orderTP])
+        fm_df["posr"] = posr_df(fm_df[cols_orderTP])
+        fm_df["d_posr"] = fm_df["posr"] - fm_df.loc[rootIndex]["posr"].values[0]
+    if "d_negr" in metrics:
+        # TODO
+        from .utils_metrics_FPx import getInfoRoot
+
+        rootIndex = getInfoRoot(fm_df).index
+        from .utils_metrics_FPx import get_neg, negr_df
+
+        fm_df["N"] = get_neg(fm_df[cols_orderTP])
+        fm_df["negr"] = negr_df(fm_df[cols_orderTP])
+        fm_df["d_negr"] = fm_df["negr"] - fm_df.loc[rootIndex]["negr"].values[0]
+
+    from .utils_metrics_FPx import getInfoRoot
+
+    infoRoot = getInfoRoot(fm_df)
+
+    if "d_fnr" in metrics:
+        fm_df["d_fnr"] = fm_df["fnr"] - infoRoot["fnr"].values[0]
+    if "d_fpr" in metrics:
+        fm_df["d_fpr"] = fm_df["fpr"] - infoRoot["fpr"].values[0]
+    if "d_accuracy" in metrics:
+        fm_df["d_accuracy"] = fm_df["accuracy"] - infoRoot["accuracy"].values[0]
+
+    # Classification error
+    if "d_error" in metrics:
+        fm_df["d_error"] = fm_df["error"] - infoRoot["error"].values[0]
+
+    # Precision or positive predictive value (PPV)
+    if "d_ppv" in metrics:
+        fm_df["d_ppv"] = fm_df["ppv"] - infoRoot["ppv"].values[0]
+
+    if "d_tpr" in metrics:
+        fm_df["d_tpr"] = fm_df["tpr"] - infoRoot["tpr"].values[0]
+    if "d_tnr" in metrics:
+        fm_df["d_tnr"] = fm_df["tnr"] - infoRoot["tnr"].values[0]
+    if "d_npv" in metrics:
+        fm_df["d_npv"] = fm_df["npv"] - infoRoot["npv"].values[0]
+    if "d_fdr" in metrics:
+        fm_df["d_fdr"] = fm_df["fdr"] - infoRoot["fdr"].values[0]
+    if "d_for" in metrics:
+        fm_df["d_for"] = fm_df["for"] - infoRoot["for"].values[0]
+
+    ####### TO BE REMOVED IF NOT NECESSARY #########
+    if "d_fnr_abs" in metrics:
+        fm_df["d_fnr_abs"] = abs(fm_df["fnr"] - infoRoot["fnr"].values[0])
+    if "d_fpr_abs" in metrics:
+        fm_df["d_fpr_abs"] = abs(fm_df["fpr"] - infoRoot["fpr"].values[0])
+    if "d_accuracy_abs" in metrics:
+        fm_df["d_accuracy_abs"] = abs(
+            fm_df["accuracy"] - infoRoot["accuracy"].values[0]
+        )
+
+    if "ACsf" in metrics:
+        from .utils_metrics_FPx import AccuracySubgroupFairness
+
+        fm_df = AccuracySubgroupFairness(fm_df)
+    if "SPsf" in metrics:
+        from .utils_metrics_FPx import statParitySubgroupFairness
+
+        fm_df = statParitySubgroupFairness(fm_df)
+    if "FPsf" in metrics:
+        from .utils_metrics_FPx import FPSubgroupFairness
+
+        fm_df = FPSubgroupFairness(fm_df)
+    if "FNsf" in metrics:
+        from .utils_metrics_FPx import FNSubgroupFairness
+
+        fm_df = FNSubgroupFairness(fm_df)
+
+    if "d_fnr_w" in metrics:
+        alfaFN = (fm_df["tp"] + fm_df["fn"]) / infoRoot["support_count"].values[0]
+        fm_df["d_fnr_w"] = alfaFN * fm_df["d_fnr"]
+    if "d_fpr_w" in metrics:
+        alfaFP = (fm_df["tn"] + fm_df["fp"]) / infoRoot["support_count"].values[0]
+        fm_df["d_fpr_w"] = alfaFP * fm_df["d_fpr"]
+    if "d_accuracy_w" in metrics:
+        fm_df["d_accuracy_w"] = fm_df["support"] * fm_df["d_accuracy"]
+    return fm_df

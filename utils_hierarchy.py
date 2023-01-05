@@ -76,8 +76,10 @@ def extend_dataset_with_hierarchy(
     ) in generalizations_obj.dict_name_id_generalizations_flatten().items():
         if verbose:
             print(id_new_col, name_new_col, id_cols)
+
+        
         X_one_hot_extend[name_new_col] = (
-            X_one_hot_extend[X_one_hot_extend.columns[list(id_cols)]].any(1).astype(int)
+            X_one_hot_extend[X_one_hot_extend.columns[list(id_cols)]].any(axis = 1).astype(int)
         )
         if X_one_hot_extend.shape[1] - 1 != id_new_col:
             raise ValueError("Not correspond id and name")
