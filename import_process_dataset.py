@@ -332,24 +332,11 @@ def import_process_online_shoppers_intention(inputDir=DATASET_DIR):
         }
     )
 
-    continuous_attributes = list(df.describe().columns)
-    continuous_attributes.remove("SpecialDay")
+    continuous_attributes = ['Administrative', 'Administrative_Duration', 'Informational', 'Informational_Duration', 'ProductRelated', 'ProductRelated_Duration', 'BounceRates', 'ExitRates', 'PageValues', 'Month',  'SpecialDay']
+
+
     return df, class_map, continuous_attributes
 
-
-def import_process_real_estate(inputDir=DATASET_DIR):
-
-    check_dataset_availability("Daegu_Real_Estate_data.csv", inputDir=inputDir)
-
-    df = pd.read_csv(os.path.join(DATASET_DIR, "Daegu_Real_Estate_data.csv"), sep=",")
-
-    continuous_attributes = list(df.describe())
-
-    target = "SalePrice"
-
-    continuous_attributes.remove(target)
-
-    return df, target, continuous_attributes
 
 
 def generate_artificial_gaussian_error(n_attributes=3, n=10000):
@@ -403,42 +390,29 @@ def generate_artificial_gaussian_error(n_attributes=3, n=10000):
     class_map = {"P": 1, "N": 0}
     return df_analysis, class_map, attributes
 
+def import_process_bank_full(input_dir=DATASET_DIR):
 
-def import_process_default_payment(input_dir=DATASET_DIR):
-    if os.path.isfile(os.path.join(input_dir, "default_payment.csv")):
-        df = pd.read_excel(os.path.join(input_dir, "default_payment.csv"), skiprows=1)
-    else:
+    df = pd.read_csv(os.path.join(input_dir, 'bank-full.csv'), sep = ';')
 
-        df = pd.read_excel(
-            "https://archive.ics.uci.edu/ml/machine-learning-databases/00350/default%20of%20credit%20card%20clients.xls",
-            skiprows=1,
-        )
-    df = df.drop(columns=["ID"])
-    df = df.rename(columns={"default payment next month": "class"})
+    #From https://archive.ics.uci.edu/ml/datasets/bank+marketing
+    #11 - duration: last contact duration, in seconds (numeric). 
+    # Important note: this attribute highly affects the output target 
+    # (e.g., if duration=0 then y='no'). Yet, the duration is not known before a call is performed. 
+    # Also, after the end of the call y is obviously known. 
+    # Thus, this input should only be included for benchmark purposes and should be discarded if the intention is to have a realistic predictive model.
 
-    from import_process_dataset import train_classifier_kv
+    df.drop(columns=['duration'], inplace=True)
 
-    continuous_attributes = [
-        "LIMIT_BAL",
-        "AGE",
-        "PAY_0",
-        "PAY_2",
-        "PAY_3",
-        "PAY_4",
-        "PAY_5",
-        "PAY_6",
-        "BILL_AMT1",
-        "BILL_AMT2",
-        "BILL_AMT3",
-        "BILL_AMT4",
-        "BILL_AMT5",
-        "BILL_AMT6",
-        "PAY_AMT1",
-        "PAY_AMT2",
-        "PAY_AMT3",
-        "PAY_AMT4",
-        "PAY_AMT5",
-        "PAY_AMT6",
-    ]
-    class_map = {"P": 1, "N": 0}
+    df.rename(columns={"y": "class"}, inplace=True)
+    class_map = {"N": "no", "P": "yes"}
+
+    df["month"] = df["month"].replace(
+        {'may': 5, 'jun': 6, 'jul': 7, 'aug': 8, 'oct': 9, 'nov': 11, 'dec': 12, 'jan': 1, 'feb': 2,
+       'mar': 3, 'apr': 4, 'sep': 5}
+    )
+
+
+    continuous_attributes = list(df.describe())
+
+    
     return df, class_map, continuous_attributes
